@@ -10,7 +10,8 @@ package com.gettyio.uiautomation.enums;
  * <ul>
  *   <li>Windows UIA ControlType ID：50000 - 50040</li>
  *   <li>macOS AXRole 映射 ID：60000 - 60099</li>
- *   <li>跨平台通用类型：使用 Windows ID 作为基准（macOS 端通过 AXRole 映射到相同枚举值）</li>
+ *   <li>Linux AT-SPI Role 映射 ID：70000 - 70099</li>
+ *   <li>跨平台通用类型：使用 Windows ID 作为基准（各平台通过角色映射到相同枚举值）</li>
  * </ul>
  *
  * <h3>跨平台使用约定：</h3>
@@ -139,7 +140,33 @@ public enum ControlType {
     /** 弹出按钮（仅 macOS） - AXRole: AXPopUpButton */
     PopUpButton(60011, Platform.MAC),
     /** 应用级 UI 元素（仅 macOS） - AXRole: AXApplication */
-    Application(60012, Platform.MAC);
+    Application(60012, Platform.MAC),
+
+    // ==================== Linux 专用类型（AT-SPI2 Role） ====================
+
+    /** 警告框（仅 Linux） - AT-SPI Role: ROLE_ALERT */
+    Alert(70000, Platform.LINUX),
+    /** 对话框（仅 Linux） - AT-SPI Role: ROLE_DIALOG / ROLE_FRAME */
+    Dialog(70001, Platform.LINUX),
+    /** 填充器/空白容器（仅 Linux） - AT-SPI Role: ROLE_FILLER */
+    Filler(70002, Platform.LINUX),
+    /** 图标控件（仅 Linux） - AT-SPI Role: ROLE_ICON */
+    Icon(70003, Platform.LINUX),
+    /** 标签页面板（仅 Linux） - AT-SPI Role: ROLE_PAGE_TAB */
+    PageTab(70004, Platform.LINUX),
+    /** 标签页内容区（仅 Linux） - AT-SPI Role: ROLE_PAGE_TAB_LIST */
+    PageTabList(70005, Platform.LINUX),
+    /** 弹出菜单（仅 Linux） - AT-SPI Role: ROLE_POPUP_MENU */
+    PopupMenu(70006, Platform.LINUX),
+    /** 表格控件（仅 Linux） - AT-SPI Role: ROLE_TABLE */
+    Table(70007, Platform.LINUX),
+    /** 表格单元格（仅 Linux） - AT-SPI Role: ROLE_TABLE_CELL */
+    TableCell(70008, Platform.LINUX),
+    /** 表格列头（仅 Linux） - AT-SPI Role: ROLE_TABLE_COLUMN_HEADER */
+    TableColumnHeader(70009, Platform.LINUX),
+    /** 表格行头（仅 Linux） - AT-SPI Role: ROLE_TABLE_ROW_HEADER */
+    TableRowHeader(70010, Platform.LINUX);
+
 
     /** 控件类型 ID（Windows: 50000+, macOS: 60000+） */
     private final int id;
@@ -251,15 +278,66 @@ public enum ControlType {
     }
 
     /**
+     * 根据 Linux AT-SPI2 Role 值查找对应的 ControlType
+     * <p>在 Linux 后端中使用，将 AT-SPI Role 整数映射到统一的 ControlType 枚举</p>
+     *
+     * @param atspiRole AT-SPI2 Role 整数值（如 74=ROLE_PUSH_BUTTON, 27=ROLE_FRAME）
+     * @return 对应的 ControlType，如果找不到返回 {@link #Custom}
+     * @see <a href="https://gitlab.gnome.org/GNOME/at-spi2-core/blob/main/xml/Role.xml">AT-SPI2 Role</a>
+     */
+    public static ControlType fromAtspiRole(int atspiRole) {
+        switch (atspiRole) {
+            case 74:  return Button;            // ROLE_PUSH_BUTTON
+            case 11:  return CheckBox;          // ROLE_CHECK_BOX
+            case 15:  return ComboBox;          // ROLE_COMBO_BOX
+            case 66:  return Edit;              // ROLE_TEXT (editable)
+            case 79:  return Hyperlink;         // ROLE_LINK
+            case 31:  return Image;             // ROLE_IMAGE
+            case 35:  return List;              // ROLE_LIST
+            case 36:  return ListItem;          // ROLE_LIST_ITEM
+            case 37:  return Menu;              // ROLE_MENU
+            case 38:  return MenuBar;           // ROLE_MENU_BAR
+            case 39:  return MenuItem;          // ROLE_MENU_ITEM
+            case 49:  return RadioButton;       // ROLE_RADIO_BUTTON
+            case 53:  return ScrollBar;         // ROLE_SCROLL_BAR
+            case 56:  return Slider;            // ROLE_SLIDER
+            case 59:  return StatusBar;         // ROLE_STATUS_BAR
+            case 42:  return Tab;               // ROLE_PAGE_TAB
+            case 43:  return TabItem;           // ROLE_PAGE_TAB_LIST (items)
+            case 33:  return Text;              // ROLE_LABEL
+            case 70:  return Tree;              // ROLE_TREE
+            case 71:  return TreeItem;          // ROLE_TREE_TABLE
+            case 27:  return Window;            // ROLE_FRAME
+            case 20:  return Dialog;            // ROLE_DIALOG
+            case 44:  return Pane;              // ROLE_PANEL
+            case 22:  return Document;          // ROLE_DRAWING_AREA
+            case 24:  return Group;             // ROLE_FILLER
+            case 47:  return ProgressBar;       // ROLE_PROGRESS_BAR
+            case 68:  return ToolBar;           // ROLE_TOOL_BAR
+            case 55:  return Separator;         // ROLE_SEPARATOR
+            case 2:   return Alert;             // ROLE_ALERT
+            case 46:  return PopupMenu;         // ROLE_POPUP_MENU
+            case 60:  return Table;             // ROLE_TABLE
+            case 61:  return TableCell;         // ROLE_TABLE_CELL
+            case 62:  return TableColumnHeader; // ROLE_TABLE_COLUMN_HEADER
+            case 63:  return TableRowHeader;    // ROLE_TABLE_ROW_HEADER
+            case 30:  return Icon;              // ROLE_ICON
+            default:  return Custom;
+        }
+    }
+
+    /**
      * 平台标识枚举
      * <p>用于标记控件类型所属的平台，支持跨平台代码判断</p>
      */
     public enum Platform {
-        /** 跨平台通用类型（Windows + macOS 均有对应概念） */
+        /** 跨平台通用类型（Windows + macOS + Linux 均有对应概念） */
         CROSS_PLATFORM,
         /** 仅 Windows 平台 */
         WINDOWS,
         /** 仅 macOS 平台 */
-        MAC
+        MAC,
+        /** 仅 Linux 平台（AT-SPI2） */
+        LINUX
     }
 }

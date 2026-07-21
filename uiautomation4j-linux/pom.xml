@@ -1,0 +1,44 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.gettyio.gim</groupId>
+        <artifactId>uiautomation4j</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>uiautomation4j-linux</artifactId>
+    <name>uiautomation4j-linux</name>
+    <description>Linux 平台实现 - 通过 dbus-java 调用 AT-SPI2 无障碍接口</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.gettyio.gim</groupId>
+            <artifactId>uiautomation4j-core</artifactId>
+        </dependency>
+        <!-- D-Bus 通信库：用于与 AT-SPI2 交互 -->
+        <dependency>
+            <groupId>com.github.hypfvieh</groupId>
+            <artifactId>dbus-java-core</artifactId>
+        </dependency>
+        <!-- D-Bus Unix Socket 传输层：AT-SPI2 连接必需 -->
+        <dependency>
+            <groupId>com.github.hypfvieh</groupId>
+            <artifactId>dbus-java-transport-native-unixsocket</artifactId>
+        </dependency>
+        <!-- JNA：用于 XTest 键盘/鼠标模拟 -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
