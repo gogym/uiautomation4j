@@ -10,6 +10,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="uiautomation4j-win" />
+        <module name="uiautomation4j-mac" />
         <module name="uiautomation4j-core" />
       </profile>
     </annotationProcessing>

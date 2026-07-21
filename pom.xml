@@ -17,6 +17,7 @@
   <modules>
     <module>uiautomation4j-core</module>
     <module>uiautomation4j-win</module>
+    <module>uiautomation4j-mac</module>
   </modules>
 
   <dependencyManagement>

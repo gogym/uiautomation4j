@@ -5,6 +5,8 @@
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/uiautomation4j-core/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/uiautomation4j-core/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/uiautomation4j-mac/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/uiautomation4j-mac/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/uiautomation4j-win/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/uiautomation4j-win/src/main/resources" charset="UTF-8" />
   </component>
