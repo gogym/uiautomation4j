@@ -96,4 +96,29 @@ public interface ControlBackend {
      * 获取全局搜索超时（秒）
      */
     int getGlobalSearchTimeout();
+
+    /**
+     * 等待控件就绪（可见且可交互）
+     *
+     * @param control      控件
+     * @param maxWaitSeconds 最大等待秒数
+     * @return true 表示控件已就绪
+     */
+    boolean waitReady(Control control, int maxWaitSeconds);
+
+    /**
+     * 检查控件是否启用
+     *
+     * @param control 控件
+     * @return 是否启用
+     */
+    boolean isEnabled(Control control);
+
+    /**
+     * 检查控件是否可见（不在屏幕外）
+     *
+     * @param control 控件
+     * @return 是否可见
+     */
+    boolean isVisible(Control control);
 }

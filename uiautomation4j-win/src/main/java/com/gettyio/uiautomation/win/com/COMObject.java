@@ -11,8 +11,15 @@ import com.sun.jna.ptr.PointerByReference;
 /**
  * COM 对象基础包装类
  * 提供 vtable 方法调用、引用计数管理等基础功能
+ *
+ * <p>实现 {@link AutoCloseable} 接口，支持 try-with-resources 自动释放 COM 资源：</p>
+ * <pre>
+ * try (IUIAutomationElement element = someElement.findFirst(scope, condition)) {
+ *     // 使用 element
+ * } // 自动调用 close() -> release()
+ * </pre>
  */
-public abstract class COMObject {
+public abstract class COMObject implements AutoCloseable {
 
     protected Pointer pointer; // IUnknown pointer
 
@@ -112,6 +119,10 @@ public abstract class COMObject {
 
     /**
      * QueryInterface - 查询接口
+     * <pre>
+     * COM 签名: HRESULT QueryInterface(REFIID riid, void** ppvObject);
+     * vtable index: 0
+     * </pre>
      *
      * @param iid  接口 ID
      * @param ppv  输出参数
@@ -124,6 +135,10 @@ public abstract class COMObject {
 
     /**
      * AddRef - 增加引用计数
+     * <pre>
+     * COM 签名: ULONG AddRef();
+     * vtable index: 1
+     * </pre>
      */
     public int addRef() {
         // IUnknown::AddRef is vtable index 1
@@ -131,7 +146,11 @@ public abstract class COMObject {
     }
 
     /**
-     * Release - 减少引用计数
+     * Release - 减少引用计数，当引用计数为 0 时 COM 对象被释放
+     * <pre>
+     * COM 签名: ULONG Release();
+     * vtable index: 2
+     * </pre>
      */
     public int release() {
         if (!isValid()) {
@@ -146,9 +165,18 @@ public abstract class COMObject {
     }
 
     /**
-     * 释放 COM 对象
+     * 释放 COM 对象（等同于 release()）
      */
     public void dispose() {
+        release();
+    }
+
+    /**
+     * AutoCloseable 接口实现 - 支持 try-with-resources 自动释放
+     * 调用 release() 减少 COM 引用计数，防止内存泄漏
+     */
+    @Override
+    public void close() {
         release();
     }
 }

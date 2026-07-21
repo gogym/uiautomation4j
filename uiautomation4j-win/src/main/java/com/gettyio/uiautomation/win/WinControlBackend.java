@@ -18,20 +18,55 @@ import com.sun.jna.ptr.PointerByReference;
 
 /**
  * Windows 平台的 ControlBackend 实现
- * 通过 JNA + COM 调用 Windows UIAutomation API
+ *
+ * <p>通过 JNA + COM 调用 Windows UIAutomation API，实现 core 模块定义的
+ * {@link com.gettyio.uiautomation.spi.ControlBackend} SPI 接口。</p>
+ *
+ * <p>主要职责：</p>
+ * <ul>
+ *   <li>初始化 COM 和创建 {@link IUIAutomation} 实例</li>
+ *   <li>实现控件搜索逻辑（基于 TreeScope + 属性条件）</li>
+ *   <li>实现控件操作（click/doubleClick/rightClick 通过鼠标模拟）</li>
+ *   <li>实现 Pattern 获取（通过 {@code GetCurrentPatternAs} COM 方法）</li>
+ *   <li>实现智能等待（waitReady/exists）</li>
+ * </ul>
+ *
+ * <p>搜索策略：</p>
+ * <ol>
+ *   <li>确定搜索起点（桌面根元素或父控件）</li>
+ *   <li>构建 COM 属性条件（优先使用 Name/ClassName/AutomationId/ControlType）</li>
+ *   <li>调用 {@code IUIAutomationElement::FindFirst} 执行搜索</li>
+ *   <li>如果指定了深度限制，使用 {@link IUIAutomationTreeWalker} 进行深度遍历</li>
+ *   <li>对于 subName/regexName 等复杂条件，在 Java 层进行二次过滤</li>
+ * </ol>
  */
 public class WinControlBackend implements ControlBackend {
 
+    /** IUIAutomation COM 接口实例，用于创建条件和遍历元素树 */
     private IUIAutomation automation;
+    /** TrueCondition，匹配所有元素，用于 TreeWalker 遍历 */
     private IUIAutomationCondition trueCondition;
-    private int globalSearchTimeout = 10; // 默认 10 秒
+    /** 全局搜索超时时间（秒），默认 10 秒 */
+    private int globalSearchTimeout = 10;
 
+    /**
+     * 构造方法 - 初始化 COM 并创建 IUIAutomation 实例
+     * <p>调用顺序: {@code CoInitializeEx} → {@code CoCreateInstance(CUIAutomation)}</p>
+     */
     public WinControlBackend() {
         Win32Util.initCOM();
         this.automation = IUIAutomation.create();
         this.trueCondition = automation.createTrueCondition();
     }
 
+    /**
+     * 根据搜索条件查找控件
+     * <p>搜索流程：searchElement → WinControlFactory.createControl → 返回对应 Control 子类</p>
+     *
+     * @param condition 搜索条件
+     * @return 找到的控件
+     * @throws com.gettyio.uiautomation.exception.ControlNotFoundException 如果未找到
+     */
     @Override
     public Control findControl(SearchCondition condition) {
         IUIAutomationElement element = searchElement(condition);
@@ -44,6 +79,14 @@ public class WinControlBackend implements ControlBackend {
         return control;
     }
 
+    /**
+     * 检查控件是否存在（带重试）
+     * <p>在超时时间内循环尝试搜索，每次间隔由 condition.getSearchInterval() 控制。</p>
+     *
+     * @param condition      搜索条件
+     * @param maxWaitSeconds 最大等待秒数
+     * @return true 表示在超时时间内找到了控件
+     */
     @Override
     public boolean exists(SearchCondition condition, int maxWaitSeconds) {
         long startTime = System.currentTimeMillis();
@@ -200,10 +243,62 @@ public class WinControlBackend implements ControlBackend {
         return globalSearchTimeout;
     }
 
+    @Override
+    public boolean waitReady(Control control, int maxWaitSeconds) {
+        long startTime = System.currentTimeMillis();
+        long timeoutMs = maxWaitSeconds * 1000L;
+
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            try {
+                IUIAutomationElement element = searchElement(control.getSearchCondition());
+                if (element != null) {
+                    boolean enabled = element.isEnabled();
+                    boolean visible = !element.isOffscreen();
+                    if (enabled && visible) {
+                        return true;
+                    }
+                }
+            } catch (Exception e) {
+                // 忽略异常，继续重试
+            }
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isEnabled(Control control) {
+        IUIAutomationElement element = getElement(control);
+        return element.isEnabled();
+    }
+
+    @Override
+    public boolean isVisible(Control control) {
+        IUIAutomationElement element = getElement(control);
+        return !element.isOffscreen();
+    }
+
     // ==================== 内部方法 ====================
 
     /**
-     * 根据搜索条件查找元素
+     * 根据搜索条件查找元素（内部方法）
+     *
+     * <p>搜索策略：</p>
+     * <ol>
+     *   <li>确定搜索起点（searchFrom 或桌面根元素）</li>
+     *   <li>确定 TreeScope（Element/Children/Subtree）</li>
+     *   <li>构建 COM 属性条件</li>
+     *   <li>调用 FindFirst 搜索</li>
+     *   <li>如果指定了深度限制，使用 TreeWalker 深度遍历</li>
+     * </ol>
+     *
+     * @param condition 搜索条件
+     * @return 找到的元素，未找到返回 null
      */
     private IUIAutomationElement searchElement(SearchCondition condition) {
         // 确定搜索起点
@@ -249,6 +344,14 @@ public class WinControlBackend implements ControlBackend {
 
     /**
      * 深度限制搜索
+     * <p>使用 TreeWalker 遍历 UI 树，仅搜索到指定深度。
+     * 对每个元素调用 {@code matchesCondition} 进行二次过滤。</p>
+     *
+     * @param parent       父元素
+     * @param condition    搜索条件
+     * @param comCondition COM 条件（未使用，保留用于未来优化）
+     * @param currentDepth 当前深度
+     * @return 匹配的元素，未找到返回 null
      */
     private IUIAutomationElement searchWithDepthLimit(IUIAutomationElement parent,
                                                        SearchCondition condition,
@@ -282,7 +385,13 @@ public class WinControlBackend implements ControlBackend {
     }
 
     /**
-     * 检查元素是否匹配条件
+     * 检查元素是否匹配搜索条件（Java 层二次过滤）
+     * <p>COM 层只能按单一属性搜索，复杂条件（subName、regexName 等）
+     * 需要在找到元素后在 Java 层进行二次验证。</p>
+     *
+     * @param element   要检查的元素
+     * @param condition 搜索条件
+     * @return true 表示元素匹配所有条件
      */
     private boolean matchesCondition(IUIAutomationElement element, SearchCondition condition) {
         if (condition.hasName()) {
@@ -320,6 +429,11 @@ public class WinControlBackend implements ControlBackend {
 
     /**
      * 构建 COM 搜索条件
+     * <p>优先使用 Name 属性构建条件，因为 Name 是最常用的搜索条件。
+     * 依次尝试: Name → ClassName → AutomationId → ControlType。</p>
+     *
+     * @param condition 搜索条件
+     * @return COM 条件对象，如果没有可构建的条件则返回 null
      */
     private IUIAutomationCondition buildComCondition(SearchCondition condition) {
         // 优先使用 Name 属性构建条件
@@ -362,6 +476,12 @@ public class WinControlBackend implements ControlBackend {
 
     /**
      * 获取控件的 COM Element
+     * <p>如果控件的 nativeElement 已经是 IUIAutomationElement，直接返回；
+     * 否则重新搜索并缓存结果。</p>
+     *
+     * @param control 控件
+     * @return COM Element
+     * @throws com.gettyio.uiautomation.exception.ControlNotFoundException 如果找不到
      */
     private IUIAutomationElement getElement(Control control) {
         if (control.getNativeElement() instanceof IUIAutomationElement) {

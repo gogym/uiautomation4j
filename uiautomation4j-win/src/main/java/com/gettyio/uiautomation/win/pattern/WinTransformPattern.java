@@ -7,21 +7,32 @@ import com.gettyio.uiautomation.win.com.COMObject;
 
 /**
  * TransformPattern 的 Windows 实现
- * IID_IUIAutomationTransformPattern: {a9b55844-a55d-4ef0-926d-569c16ff89bb}
  *
- * vtable (after IUnknown 0-2):
- *   3: Move(x, y)
- *   4: Resize(width, height)
- *   5: Rotate(degrees)
- *   6: get_CurrentCanMove
- *   7: get_CurrentCanResize
- *   8: get_CurrentCanRotate
+ * <p>将 core 模块的 {@link TransformPattern} 接口桥接到 Windows COM 层。
+ * 使用内部类 {@code TransformComObject} 继承 {@link COMObject} 以访问 protected 的
+ * {@code invokeVtable} 方法。</p>
+ *
+ * <pre>
+ * IID_IUIAutomationTransformPattern: {a9b55844-a55d-4ef0-926d-569c16ff89bb}
+ * Pattern ID: 10016 (UIA_TransformPatternId)
+ *
+ * Vtable:
+ *   [3] Move(double x, double y)
+ *   [4] Resize(double width, double height)
+ *   [5] Rotate(double degrees)
+ *   [6] get_CurrentCanMove(BOOL* pCanMove)
+ *   [7] get_CurrentCanResize(BOOL* pCanResize)
+ *   [8] get_CurrentCanRotate(BOOL* pCanRotate)
+ * </pre>
  */
 public class WinTransformPattern implements TransformPattern {
 
+    /** IID_IUIAutomationTransformPattern */
     private static final String IID = "{a9b55844-a55d-4ef0-926d-569c16ff89bb}";
-    private static final int PATTERN_ID = 10016; // UIA_TransformPatternId
+    /** Pattern ID: UIA_TransformPatternId = 10016 */
+    private static final int PATTERN_ID = 10016;
 
+    /** 底层 COM TransformPattern 对象（通过内部类包装） */
     private final TransformComObject comPattern;
 
     public WinTransformPattern(Pointer patternPointer) {
@@ -64,6 +75,10 @@ public class WinTransformPattern implements TransformPattern {
         return pVal[0] != 0;
     }
 
+    /**
+     * 内部 COM 包装类
+     * <p>继承 {@link COMObject} 以访问 protected 的 {@code invokeVtable} 方法。</p>
+     */
     private static class TransformComObject extends COMObject {
         TransformComObject(Pointer pointer) {
             super(pointer);

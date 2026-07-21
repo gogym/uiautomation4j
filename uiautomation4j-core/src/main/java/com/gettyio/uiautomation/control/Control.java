@@ -99,6 +99,45 @@ public abstract class Control {
     }
 
     /**
+     * 按名称搜索子控件（链式调用支持）
+     * <p>用法示例: {@code element.child("Save").click()}</p>
+     *
+     * @param name 子控件名称
+     * @return 找到的控件
+     */
+    public Control child(String name) {
+        SearchCondition childCond = SearchCondition.builder().name(name).searchFrom(this.searchCondition).build();
+        return getBackend().findControl(childCond);
+    }
+
+    /**
+     * 按名称和控件类型搜索子控件（链式调用支持）
+     * <p>用法示例: {@code element.child("Save", ControlType.Button).click()}</p>
+     *
+     * @param name        子控件名称
+     * @param controlType 控件类型
+     * @return 找到的控件
+     */
+    public Control child(String name, ControlType controlType) {
+        SearchCondition childCond = SearchCondition.builder()
+                .name(name).controlType(controlType)
+                .searchFrom(this.searchCondition).build();
+        return getBackend().findControl(childCond);
+    }
+
+    /**
+     * 按搜索条件搜索子控件（链式调用支持）
+     * <p>用法示例: {@code element.child(SearchCondition.builder().name("Save").className("Button").build()).click()}</p>
+     *
+     * @param condition 搜索条件
+     * @return 找到的控件
+     */
+    public Control child(SearchCondition condition) {
+        SearchCondition merged = mergeWithParent(condition);
+        return getBackend().findControl(merged);
+    }
+
+    /**
      * 查找子窗口
      */
     public WindowControl findWindow() {
@@ -308,37 +347,88 @@ public abstract class Control {
         return (TreeItemControl) c;
     }
 
+    // ==================== 智能等待 ====================
+
+    /**
+     * 等待控件就绪（可见且可交互）
+     * <p>使用默认超时时间</p>
+     *
+     * @return this（支持链式调用）
+     */
+    public Control waitReady() {
+        return waitReady(getBackend().getGlobalSearchTimeout());
+    }
+
+    /**
+     * 等待控件就绪（指定超时时间）
+     * <p>等待元素可见且启用，操作前调用可确保元素可交互</p>
+     *
+     * @param maxWaitSeconds 最大等待秒数
+     * @return this（支持链式调用）
+     */
+    public Control waitReady(int maxWaitSeconds) {
+        boolean ready = getBackend().waitReady(this, maxWaitSeconds);
+        if (!ready) {
+            throw new com.gettyio.uiautomation.exception.AutomationException(
+                    "等待控件就绪超时(" + maxWaitSeconds + "秒): " + searchCondition);
+        }
+        // 重置缓存，强制重新查找
+        this.elementFound = false;
+        this.nativeElement = null;
+        return this;
+    }
+
+    /**
+     * 检查控件是否启用
+     */
+    public boolean isEnabled() {
+        ensureElement();
+        return getBackend().isEnabled(this);
+    }
+
+    /**
+     * 检查控件是否可见
+     */
+    public boolean isVisible() {
+        ensureElement();
+        return getBackend().isVisible(this);
+    }
+
     // ==================== 操作 ====================
 
     /**
-     * 点击控件
+     * 点击控件（自动等待控件就绪）
      */
     public void click() {
         ensureElement();
+        ensureReady();
         getBackend().click(this);
     }
 
     /**
-     * 双击控件
+     * 双击控件（自动等待控件就绪）
      */
     public void doubleClick() {
         ensureElement();
+        ensureReady();
         getBackend().doubleClick(this);
     }
 
     /**
-     * 右键点击控件
+     * 右键点击控件（自动等待控件就绪）
      */
     public void rightClick() {
         ensureElement();
+        ensureReady();
         getBackend().rightClick(this);
     }
 
     /**
-     * 发送按键
+     * 发送按键（自动等待控件就绪）
      */
     public void sendKeys(String keys) {
         ensureElement();
+        ensureReady();
         getBackend().sendKeys(this, keys);
     }
 
@@ -455,6 +545,20 @@ public abstract class Control {
         }
     }
 
+    /**
+     * 确保元素可交互（启用且可见）
+     * 如果元素未就绪，尝试等待短暂时间
+     */
+    protected void ensureReady() {
+        try {
+            if (!getBackend().isEnabled(this) || !getBackend().isVisible(this)) {
+                getBackend().waitReady(this, 5);
+            }
+        } catch (Exception e) {
+            // 等待失败不阻断操作，继续执行
+        }
+    }
+
     private SearchCondition mergeWithParent(SearchCondition child) {
         if (this.searchCondition == null) {
             return child;
@@ -498,10 +602,26 @@ public abstract class Control {
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "{" +
-                "searchCondition=" + searchCondition +
-                ", elementFound=" + elementFound +
-                '}';
+        StringBuilder sb = new StringBuilder(getClass().getSimpleName());
+        sb.append("{");
+        if (elementFound && nativeElement != null) {
+            try {
+                // 尝试通过 backend 获取运行时属性
+                String name = getBackend().findControl(searchCondition).getName();
+                String className = getBackend().findControl(searchCondition).getClassName();
+                ControlType type = getControlType();
+                sb.append("name='").append(name != null ? name : "").append("', ");
+                sb.append("className='").append(className != null ? className : "").append("', ");
+                sb.append("controlType=").append(type).append(", ");
+            } catch (Exception e) {
+                sb.append("(属性获取失败)");
+            }
+        } else {
+            sb.append("searchCondition=").append(searchCondition).append(", ");
+            sb.append("elementFound=").append(elementFound).append(", ");
+        }
+        sb.append("}");
+        return sb.toString();
     }
 
     // ==================== Builder 内部类 ====================

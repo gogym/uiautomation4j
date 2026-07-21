@@ -5,6 +5,9 @@ import com.gettyio.uiautomation.enums.ControlType;
 
 /**
  * 滚动条控件
+ *
+ * <p>对应 UIAutomation 的 ScrollBar 控件类型 (ControlType=50014)。
+ * 支持 {@link ScrollPattern} 进行滚动操作。</p>
  */
 public class ScrollBarControl extends Control {
 

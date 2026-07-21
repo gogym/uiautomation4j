@@ -7,23 +7,34 @@ import com.gettyio.uiautomation.win.com.COMObject;
 
 /**
  * ScrollPattern 的 Windows 实现
- * IID_IUIAutomationScrollPattern: {b4b191ce-3975-4e7d-a50d-13b1004d8c80}
  *
- * vtable (after IUnknown 0-2):
- *   3: Scroll(horizontalAmount, verticalAmount)
- *   4: SetScrollPercent(horizontalPercent, verticalPercent)
- *   5: get_CurrentHorizontalScrollPercent
- *   6: get_CurrentVerticalScrollPercent
- *   7: get_CurrentHorizontalViewSize
- *   8: get_CurrentVerticalViewSize
- *   9: get_CurrentHorizontallyScrollable
- *   10: get_CurrentVerticallyScrollable
+ * <p>将 core 模块的 {@link ScrollPattern} 接口桥接到 Windows COM 层。
+ * 使用内部类 {@code ScrollComObject} 继承 {@link COMObject} 以访问 protected 的
+ * {@code invokeVtable} 方法。</p>
+ *
+ * <pre>
+ * IID_IUIAutomationScrollPattern: {b4b191ce-3975-4e7d-a50d-13b1004d8c80}
+ * Pattern ID: 10004 (UIA_ScrollPatternId)
+ *
+ * Vtable:
+ *   [3] Scroll(ScrollAmount horizontalAmount, ScrollAmount verticalAmount)
+ *   [4] SetScrollPercent(double horizontalPercent, double verticalPercent)
+ *   [5] get_CurrentHorizontalScrollPercent(double* pPercent)
+ *   [6] get_CurrentVerticalScrollPercent(double* pPercent)
+ *   [7] get_CurrentHorizontalViewSize(double* pSize)
+ *   [8] get_CurrentVerticalViewSize(double* pSize)
+ *   [9] get_CurrentHorizontallyScrollable(BOOL* pScrollable)
+ *   [10] get_CurrentVerticallyScrollable(BOOL* pScrollable)
+ * </pre>
  */
 public class WinScrollPattern implements ScrollPattern {
 
+    /** IID_IUIAutomationScrollPattern */
     private static final String IID = "{b4b191ce-3975-4e7d-a50d-13b1004d8c80}";
-    private static final int PATTERN_ID = 10004; // UIA_ScrollPatternId
+    /** Pattern ID: UIA_ScrollPatternId = 10004 */
+    private static final int PATTERN_ID = 10004;
 
+    /** 底层 COM ScrollPattern 对象（通过内部类包装） */
     private final ScrollComObject comPattern;
 
     public WinScrollPattern(Pointer patternPointer) {
@@ -70,6 +81,11 @@ public class WinScrollPattern implements ScrollPattern {
         return pVal[0] != 0;
     }
 
+    /**
+     * 内部 COM 包装类
+     * <p>继承 {@link COMObject} 以访问 protected 的 {@code invokeVtable} 方法。
+     * 这是解决跨包访问 COM vtable 的设计模式。</p>
+     */
     private static class ScrollComObject extends COMObject {
         ScrollComObject(Pointer pointer) {
             super(pointer);
