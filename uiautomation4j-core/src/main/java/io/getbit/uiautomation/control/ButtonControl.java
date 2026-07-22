@@ -27,8 +27,4 @@ public class ButtonControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.Button;
-    }
 }

@@ -54,8 +54,8 @@ public interface WindowPattern extends Pattern {
 
     /**
      * 设置窗口置顶
-     * <p>注意: UIAutomation 没有直接设置 Topmost 的 API，
-     * 需要通过 Win32 API {@code SetWindowPos} 实现</p>
+     * <p>Windows 平台通过 Win32 API {@code SetWindowPos} + {@code HWND_TOPMOST/HWND_NOTOPMOST} 实现。
+     * macOS / Linux 平台的 AX API 不直接支持此操作，行为可能受限。</p>
      *
      * @param topmost true 表示置顶
      */

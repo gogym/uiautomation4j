@@ -2,28 +2,47 @@ package io.getbit.uiautomation.win.pattern;
 
 import io.getbit.uiautomation.pattern.WindowPattern;
 import io.getbit.uiautomation.win.com.IUIAutomationWindowPattern;
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.User32;
+import com.sun.jna.platform.win32.WinDef;
 
 /**
  * WindowPattern 的 Windows 实现
  *
  * <p>将 core 模块的 {@link WindowPattern} 接口桥接到 Windows COM 层的
- * {@link IUIAutomationWindowPattern}。提供窗口关闭、最大化、最小化、恢复等操作。</p>
+ * {@link IUIAutomationWindowPattern}。提供窗口关闭、最大化、最小化、恢复、置顶等操作。</p>
  *
- * <p>注意: {@code setTopmost()} 暂未实现，因为 UIAutomation 没有直接设置 Topmost 的 API，
- * 需要通过 Win32 API {@code SetWindowPos} 实现。</p>
+ * <p>其中 {@code setTopmost()} 通过 Win32 API {@code SetWindowPos} 实现，
+ * 因为 UIAutomation 的 IUIAutomationWindowPattern 只支持读取 IsTopmost 属性，
+ * 不支持设置置顶状态。</p>
  */
 public class WinWindowPattern implements WindowPattern {
 
+    /** HWND_TOPMOST - 将窗口置于所有非顶级窗口之上 */
+    private static final long HWND_TOPMOST = -1L;
+    /** HWND_NOTOPMOST - 将窗口置于所有非顶级窗口之下 */
+    private static final long HWND_NOTOPMOST = -2L;
+    /** SWP_NOMOVE - 保持当前位置不变 */
+    private static final int SWP_NOMOVE = 0x0002;
+    /** SWP_NOSIZE - 保持当前大小不变 */
+    private static final int SWP_NOSIZE = 0x0001;
+    /** SWP_NOACTIVATE - 不激活窗口 */
+    private static final int SWP_NOACTIVATE = 0x0010;
+
     /** 底层 COM WindowPattern 对象 */
     private final IUIAutomationWindowPattern comPattern;
+    /** 窗口原生句柄（HWND），用于 SetWindowPos 调用 */
+    private final long hwnd;
 
     /**
      * 构造 WinWindowPattern
      *
      * @param comPattern IUIAutomationWindowPattern COM 包装对象
+     * @param hwnd       窗口原生句柄（通过 IUIAutomationElement.getNativeWindowHandle() 获取）
      */
-    public WinWindowPattern(IUIAutomationWindowPattern comPattern) {
+    public WinWindowPattern(IUIAutomationWindowPattern comPattern, long hwnd) {
         this.comPattern = comPattern;
+        this.hwnd = hwnd;
     }
 
     /**
@@ -86,17 +105,24 @@ public class WinWindowPattern implements WindowPattern {
 
     /**
      * 设置窗口置顶状态
-     * <p>注意：UIAutomation 没有直接设置 Topmost 的 API，
-     * 需要通过 Win32 API {@code SetWindowPos} 配合 {@code HWND_TOPMOST} 实现。
-     * 当前版本暂未实现，留作后续扩展。
+     * <p>通过 Win32 API {@code SetWindowPos} 实现。UIAutomation 的
+     * IUIAutomationWindowPattern 只提供只读的 IsTopmost 属性，无法设置置顶。
+     * 因此这里使用窗口原生句柄（HWND）调用 {@code SetWindowPos}，
+     * 配合 {@code HWND_TOPMOST} / {@code HWND_NOTOPMOST} 标志完成置顶/取消置顶。</p>
      *
      * @param topmost 是否置顶
      */
     @Override
     public void setTopmost(boolean topmost) {
-        // UIAutomation 没有直接设置 Topmost 的 API
-        // 需要通过 Win32 API SetWindowPos 实现
-        // 此处留作后续通过 User32 实现
+        if (hwnd == 0) {
+            return;
+        }
+        WinDef.HWND hWnd = new WinDef.HWND(Pointer.createConstant(hwnd));
+        WinDef.HWND hWndInsertAfter = new WinDef.HWND(
+                Pointer.createConstant(topmost ? HWND_TOPMOST : HWND_NOTOPMOST));
+        User32.INSTANCE.SetWindowPos(hWnd, hWndInsertAfter,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
 
     /**

@@ -251,6 +251,19 @@ public class AXUIElement implements AutoCloseable {
     }
 
     /**
+     * 获取父元素
+     *
+     * @return 父 AXUIElement，如果已是根元素返回 null
+     */
+    public AXUIElement getParent() {
+        Pointer parentRef = getAttribute(AXAttribute.PARENT);
+        if (parentRef == null || parentRef == Pointer.NULL) {
+            return null;
+        }
+        return new AXUIElement(parentRef, true);
+    }
+
+    /**
      * 释放底层 AXUIElementRef
      */
     @Override

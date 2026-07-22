@@ -19,8 +19,4 @@ public class MenuItemControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.MenuItem;
-    }
 }

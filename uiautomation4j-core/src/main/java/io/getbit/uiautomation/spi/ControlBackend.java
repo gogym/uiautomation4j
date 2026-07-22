@@ -2,7 +2,10 @@ package io.getbit.uiautomation.spi;
 
 import io.getbit.uiautomation.condition.SearchCondition;
 import io.getbit.uiautomation.control.Control;
+import io.getbit.uiautomation.enums.ControlType;
 import io.getbit.uiautomation.pattern.*;
+
+import java.util.List;
 
 /**
  * 控件后端 SPI 接口
@@ -121,4 +124,72 @@ public interface ControlBackend {
      * @return 是否可见
      */
     boolean isVisible(Control control);
+
+    // ==================== 批量查找与树遍历 ====================
+
+    /**
+     * 查找所有匹配条件的控件
+     *
+     * @param condition 搜索条件
+     * @return 所有匹配的控件列表，如果没有匹配返回空列表
+     */
+    List<Control> findControls(SearchCondition condition);
+
+    /**
+     * 获取指定控件的所有直接子控件
+     *
+     * @param parent 父控件
+     * @return 子控件列表，如果没有子控件返回空列表
+     */
+    List<Control> getChildren(Control parent);
+
+    // ==================== 原生属性直接访问 ====================
+
+    /**
+     * 直接从 native element 获取控件名称
+     *
+     * @param control 控件
+     * @return 控件名称
+     */
+    String getElementName(Control control);
+
+    /**
+     * 直接从 native element 获取控件边界矩形
+     *
+     * @param control 控件
+     * @return int[4] = {x, y, width, height}（Windows 为 {left, top, right, bottom}）
+     */
+    int[] getElementBoundingRectangle(Control control);
+
+    /**
+     * 直接从 native element 获取运行时 ID
+     *
+     * @param control 控件
+     * @return 运行时 ID 数组，如果不可用返回空数组
+     */
+    int[] getElementRuntimeId(Control control);
+
+    /**
+     * 直接从 native element 获取控件实际类型
+     *
+     * @param control 控件
+     * @return 控件类型枚举
+     */
+    ControlType getElementControlType(Control control);
+
+    /**
+     * 获取第一个子控件
+     *
+     * @param parent 父控件
+     * @return 第一个子控件，如果没有返回 null
+     */
+    Control getFirstChild(Control parent);
+
+    /**
+     * 获取下一个兄弟控件
+     *
+     * @param control 当前控件
+     * @return 下一个兄弟控件，如果没有返回 null
+     */
+    Control getNextSibling(Control control);
 }

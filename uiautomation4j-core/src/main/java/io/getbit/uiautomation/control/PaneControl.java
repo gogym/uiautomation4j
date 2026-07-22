@@ -19,8 +19,4 @@ public class PaneControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.Pane;
-    }
 }

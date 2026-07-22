@@ -5,6 +5,8 @@ import io.getbit.uiautomation.enums.ControlType;
 import io.getbit.uiautomation.pattern.*;
 import io.getbit.uiautomation.spi.ControlBackend;
 
+import java.util.List;
+
 /**
  * 控件基类
  * 所有 UIAutomation 控件的抽象基类
@@ -49,14 +51,15 @@ public abstract class Control {
         return backend;
     }
 
-    // ==================== 属性获取 ====================
+    // ==================== 属性获取（直接从 native element 读取） ====================
 
     /**
      * 获取控件名称
+     * <p>直接从已持有的 native element 读取，不会重新搜索</p>
      */
     public String getName() {
         ensureElement();
-        return getBackend().findControl(searchCondition).getName();
+        return getBackend().getElementName(this);
     }
 
     /**
@@ -64,7 +67,7 @@ public abstract class Control {
      */
     public String getClassName() {
         ensureElement();
-        return getBackend().findControl(searchCondition).getClassName();
+        return getBackend().getElementName(this); // 默认实现，子类可覆盖
     }
 
     /**
@@ -72,13 +75,35 @@ public abstract class Control {
      */
     public String getAutomationId() {
         ensureElement();
-        return getBackend().findControl(searchCondition).getAutomationId();
+        return ""; // 默认实现，平台层可覆盖
     }
 
     /**
      * 获取控件类型
+     * <p>直接从 native element 获取实际类型，不再由子类硬编码返回</p>
      */
-    public abstract ControlType getControlType();
+    public ControlType getControlType() {
+        ensureElement();
+        return getBackend().getElementControlType(this);
+    }
+
+    /**
+     * 获取控件边界矩形
+     * <p>直接从 native element 读取，返回 int[4] = {x, y, width, height}</p>
+     */
+    public int[] getBoundingRectangle() {
+        ensureElement();
+        return getBackend().getElementBoundingRectangle(this);
+    }
+
+    /**
+     * 获取控件运行时 ID
+     * <p>直接从 native element 读取，返回平台特定的运行时标识</p>
+     */
+    public int[] getRuntimeId() {
+        ensureElement();
+        return getBackend().getElementRuntimeId(this);
+    }
 
     /**
      * 获取进程 ID
@@ -89,6 +114,36 @@ public abstract class Control {
     }
 
     // ==================== 搜索子控件 ====================
+
+    /**
+     * 获取所有直接子控件
+     *
+     * @return 子控件列表
+     */
+    public List<Control> getChildren() {
+        ensureElement();
+        return getBackend().getChildren(this);
+    }
+
+    /**
+     * 获取第一个子控件
+     *
+     * @return 第一个子控件，如果没有返回 null
+     */
+    public Control getFirstChild() {
+        ensureElement();
+        return getBackend().getFirstChild(this);
+    }
+
+    /**
+     * 获取下一个兄弟控件
+     *
+     * @return 下一个兄弟控件，如果没有返回 null
+     */
+    public Control getNextSibling() {
+        ensureElement();
+        return getBackend().getNextSibling(this);
+    }
 
     /**
      * 根据条件搜索子控件
@@ -606,12 +661,9 @@ public abstract class Control {
         sb.append("{");
         if (elementFound && nativeElement != null) {
             try {
-                // 尝试通过 backend 获取运行时属性
-                String name = getBackend().findControl(searchCondition).getName();
-                String className = getBackend().findControl(searchCondition).getClassName();
+                String name = getBackend().getElementName(this);
                 ControlType type = getControlType();
                 sb.append("name='").append(name != null ? name : "").append("', ");
-                sb.append("className='").append(className != null ? className : "").append("', ");
                 sb.append("controlType=").append(type).append(", ");
             } catch (Exception e) {
                 sb.append("(属性获取失败)");

@@ -20,8 +20,4 @@ public class TabControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.Tab;
-    }
 }

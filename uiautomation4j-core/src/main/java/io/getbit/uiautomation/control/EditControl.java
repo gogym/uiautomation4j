@@ -29,10 +29,6 @@ public class EditControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.Edit;
-    }
 
     /**
      * 获取编辑框的值

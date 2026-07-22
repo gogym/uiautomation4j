@@ -4,6 +4,7 @@ import io.getbit.uiautomation.exception.AutomationException;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.Guid;
 import com.sun.jna.platform.win32.Ole32;
+import com.sun.jna.platform.win32.OaIdl;
 import com.sun.jna.platform.win32.OleAuto;
 import com.sun.jna.platform.win32.WTypes;
 import com.sun.jna.platform.win32.WinNT;
@@ -154,6 +155,56 @@ public class Win32Util {
         if (bstr != null && bstr != Pointer.NULL) {
             WTypes.BSTR bstrObj = new WTypes.BSTR(bstr);
             OleAuto.INSTANCE.SysFreeString(bstrObj);
+        }
+    }
+
+    /**
+     * 将 SAFEARRAY(int) 解析为 Java int 数组
+     * <p>直接从 SAFEARRAY 结构体内存布局中读取数据，不依赖额外的 OLE API 调用。
+     * 适用于一维 SAFEARRAY of VT_I4（int）类型。</p>
+     *
+     * <p>SAFEARRAY 内存布局（64 位系统）：</p>
+     * <pre>
+     * offset  0: USHORT cDims        (2 bytes) - 维数
+     * offset  2: USHORT fFeatures     (2 bytes) - 特性标志
+     * offset  4: ULONG  cbElements    (4 bytes) - 每个元素的字节数
+     * offset  8: ULONG  cLocks        (4 bytes) - 锁定计数
+     * offset 16: PVOID  pvData        (8 bytes) - 指向实际数据的指针
+     * offset 24: ULONG  cElements     (4 bytes) - 第一维元素个数
+     * offset 28: LONG   lLbound       (4 bytes) - 第一维下界
+     * </pre>
+     *
+     * @param safeArrayPtr SAFEARRAY 指针（由 COM 方法返回）
+     * @return Java int 数组，如果指针无效则返回空数组
+     */
+    public static int[] safeArrayToIntArray(Pointer safeArrayPtr) {
+        if (safeArrayPtr == null || safeArrayPtr == Pointer.NULL) {
+            return new int[0];
+        }
+        // 读取元素个数（rgsabound[0].cElements，偏移 24）
+        int cElements = safeArrayPtr.getInt(24);
+        if (cElements <= 0) {
+            return new int[0];
+        }
+        // 读取数据指针（pvData，偏移 16）
+        Pointer pvData = safeArrayPtr.getPointer(16);
+        if (pvData == null || pvData == Pointer.NULL) {
+            return new int[0];
+        }
+        // 一次性读取所有 int 值
+        return pvData.getIntArray(0, cElements);
+    }
+
+    /**
+     * 释放 SAFEARRAY 内存
+     * <p>调用 {@code SafeArrayDestroy} 释放由 COM API（如 {@code GetRuntimeId}）分配的 SAFEARRAY。
+     * 必须与返回 SAFEARRAY 的 COM 方法配对使用，防止内存泄漏。</p>
+     *
+     * @param safeArrayPtr SAFEARRAY 指针
+     */
+    public static void safeArrayDestroy(Pointer safeArrayPtr) {
+        if (safeArrayPtr != null && safeArrayPtr != Pointer.NULL) {
+            OleAuto.INSTANCE.SafeArrayDestroy(new OaIdl.SAFEARRAY(safeArrayPtr));
         }
     }
 }

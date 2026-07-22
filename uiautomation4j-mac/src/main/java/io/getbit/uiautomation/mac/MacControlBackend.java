@@ -12,6 +12,8 @@ import io.getbit.uiautomation.spi.ControlBackend;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -265,6 +267,86 @@ public class MacControlBackend implements ControlBackend {
         return rect[2] > 0 && rect[3] > 0; // 宽高大于 0 即认为可见
     }
 
+    // ==================== 批量查找与树遍历 ====================
+
+    @Override
+    public List<Control> findControls(SearchCondition condition) {
+        List<Control> results = new ArrayList<>();
+        AXUIElement startElement = resolveStartElement(condition);
+        int maxDepth = condition.getSearchDepth() > 0 ? condition.getSearchDepth() : Integer.MAX_VALUE;
+        searchAllElements(startElement, condition, 0, maxDepth, results);
+        return results;
+    }
+
+    @Override
+    public List<Control> getChildren(Control parent) {
+        List<Control> children = new ArrayList<>();
+        AXUIElement element = getAXElement(parent);
+        List<AXUIElement> axChildren = element.getChildren();
+        for (AXUIElement child : axChildren) {
+            SearchCondition childCond = SearchCondition.builder().build();
+            Control control = MacControlFactory.createControl(child, childCond);
+            children.add(control);
+        }
+        return children;
+    }
+
+    @Override
+    public Control getFirstChild(Control parent) {
+        AXUIElement element = getAXElement(parent);
+        List<AXUIElement> children = element.getChildren();
+        if (children.isEmpty()) return null;
+        SearchCondition childCond = SearchCondition.builder().build();
+        return MacControlFactory.createControl(children.get(0), childCond);
+    }
+
+    @Override
+    public Control getNextSibling(Control control) {
+        AXUIElement element = getAXElement(control);
+        AXUIElement parent = element.getParent();
+        if (parent == null) return null;
+        List<AXUIElement> siblings = parent.getChildren();
+        boolean foundCurrent = false;
+        for (AXUIElement sibling : siblings) {
+            if (foundCurrent) {
+                SearchCondition siblingCond = SearchCondition.builder().build();
+                return MacControlFactory.createControl(sibling, siblingCond);
+            }
+            if (sibling.getRef().equals(element.getRef())) {
+                foundCurrent = true;
+            }
+        }
+        return null;
+    }
+
+    // ==================== 原生属性直接访问 ====================
+
+    @Override
+    public String getElementName(Control control) {
+        AXUIElement element = getAXElement(control);
+        return element.getName();
+    }
+
+    @Override
+    public int[] getElementBoundingRectangle(Control control) {
+        AXUIElement element = getAXElement(control);
+        return element.getBoundingRectangle();
+    }
+
+    @Override
+    public int[] getElementRuntimeId(Control control) {
+        // macOS 没有直接的 RuntimeId 概念，使用元素的 hash 作为替代
+        AXUIElement element = getAXElement(control);
+        return new int[]{System.identityHashCode(element.getRef())};
+    }
+
+    @Override
+    public ControlType getElementControlType(Control control) {
+        AXUIElement element = getAXElement(control);
+        String role = element.getRole();
+        return ControlType.fromMacRole(role);
+    }
+
     // ==================== 内部搜索方法 ====================
 
     /**
@@ -322,6 +404,29 @@ public class MacControlBackend implements ControlBackend {
             }
         }
         return null;
+    }
+
+    /**
+     * 深度优先搜索 UI 树，收集所有匹配元素
+     *
+     * @param element   当前遍历的元素
+     * @param condition 搜索条件
+     * @param depth     当前深度
+     * @param maxDepth  最大深度
+     * @param results   结果收集列表
+     */
+    private void searchAllElements(AXUIElement element, SearchCondition condition,
+                                    int depth, int maxDepth, List<Control> results) {
+        if (depth > maxDepth) return;
+        if (matchesCondition(element, condition)) {
+            SearchCondition matchCond = SearchCondition.builder().build();
+            Control control = MacControlFactory.createControl(element, matchCond);
+            results.add(control);
+        }
+        List<AXUIElement> children = element.getChildren();
+        for (AXUIElement child : children) {
+            searchAllElements(child, condition, depth + 1, maxDepth, results);
+        }
     }
 
     /**

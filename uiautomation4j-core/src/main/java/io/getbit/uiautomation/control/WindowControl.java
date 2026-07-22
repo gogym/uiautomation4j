@@ -36,10 +36,6 @@ public class WindowControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.Window;
-    }
 
     /**
      * 设置窗口置顶

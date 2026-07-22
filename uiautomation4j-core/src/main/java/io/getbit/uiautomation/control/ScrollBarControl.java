@@ -19,8 +19,4 @@ public class ScrollBarControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.ScrollBar;
-    }
 }

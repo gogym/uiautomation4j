@@ -100,14 +100,26 @@ public class IUIAutomationElement extends COMObject {
      * vtable index: 4
      * </pre>
      *
-     * @return Runtime ID 数组，如果不可用则返回 null
+     * <p>通过解析 COM 返回的 SAFEARRAY(int) 结构获取 Runtime ID。
+     * 调用完成后会自动释放 SAFEARRAY 内存。</p>
+     *
+     * @return Runtime ID 数组，如果不可用则返回空数组
      */
     public int[] getRuntimeId() {
-        // RuntimeId 是 SAFEARRAY(int)，通过 VARIANT 获取
-        Variant.VARIANT.ByReference pValue = new Variant.VARIANT.ByReference();
-        invokeVtable(10, new Object[]{41, 0, pValue}); // UIA_RuntimeIdPropertyId = 41
-        // 简化处理：返回空数组
-        return new int[0];
+        // GetRuntimeId 通过输出参数返回 SAFEARRAY(int) 指针
+        Pointer[] pSafeArray = new Pointer[1];
+        invokeVtable(4, new Object[]{pSafeArray});
+        Pointer safeArrayPtr = pSafeArray[0];
+        if (safeArrayPtr == null || safeArrayPtr == Pointer.NULL) {
+            return new int[0];
+        }
+        try {
+            // 解析 SAFEARRAY 结构，提取 int 数组
+            return Win32Util.safeArrayToIntArray(safeArrayPtr);
+        } finally {
+            // 释放 COM 分配的 SAFEARRAY 内存
+            Win32Util.safeArrayDestroy(safeArrayPtr);
+        }
     }
 
     // ==================== 搜索方法 ====================

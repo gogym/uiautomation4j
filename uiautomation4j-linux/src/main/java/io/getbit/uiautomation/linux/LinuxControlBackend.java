@@ -11,6 +11,7 @@ import io.getbit.uiautomation.linux.pattern.*;
 import io.getbit.uiautomation.pattern.*;
 import io.getbit.uiautomation.spi.ControlBackend;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -249,6 +250,86 @@ public class LinuxControlBackend implements ControlBackend {
         return element.isVisible();
     }
 
+    // ==================== 批量查找与树遍历 ====================
+
+    @Override
+    public List<Control> findControls(SearchCondition condition) {
+        List<Control> results = new ArrayList<>();
+        AtspiElement startElement = resolveStartElement(condition);
+        int maxDepth = condition.getSearchDepth() > 0 ? condition.getSearchDepth() : Integer.MAX_VALUE;
+        searchAllElements(startElement, condition, 0, maxDepth, results);
+        return results;
+    }
+
+    @Override
+    public List<Control> getChildren(Control parent) {
+        List<Control> children = new ArrayList<>();
+        AtspiElement element = getAtspiElement(parent);
+        List<AtspiElement> atspiChildren = element.getChildren();
+        for (AtspiElement child : atspiChildren) {
+            SearchCondition childCond = SearchCondition.builder().build();
+            Control control = LinuxControlFactory.createControl(child, childCond);
+            children.add(control);
+        }
+        return children;
+    }
+
+    @Override
+    public Control getFirstChild(Control parent) {
+        AtspiElement element = getAtspiElement(parent);
+        AtspiElement firstChild = element.getChildAtIndex(0);
+        if (firstChild == null) return null;
+        SearchCondition childCond = SearchCondition.builder().build();
+        return LinuxControlFactory.createControl(firstChild, childCond);
+    }
+
+    @Override
+    public Control getNextSibling(Control control) {
+        AtspiElement element = getAtspiElement(control);
+        AtspiElement parent = element.getParent();
+        if (parent == null) return null;
+        List<AtspiElement> siblings = parent.getChildren();
+        boolean foundCurrent = false;
+        for (AtspiElement sibling : siblings) {
+            if (foundCurrent) {
+                SearchCondition siblingCond = SearchCondition.builder().build();
+                return LinuxControlFactory.createControl(sibling, siblingCond);
+            }
+            if (sibling.getObjectPath().equals(element.getObjectPath())) {
+                foundCurrent = true;
+            }
+        }
+        return null;
+    }
+
+    // ==================== 原生属性直接访问 ====================
+
+    @Override
+    public String getElementName(Control control) {
+        AtspiElement element = getAtspiElement(control);
+        return element.getName();
+    }
+
+    @Override
+    public int[] getElementBoundingRectangle(Control control) {
+        AtspiElement element = getAtspiElement(control);
+        return element.getBoundingRectangle();
+    }
+
+    @Override
+    public int[] getElementRuntimeId(Control control) {
+        // AT-SPI2 没有直接的 RuntimeId，使用对象路径的 hash 作为替代
+        AtspiElement element = getAtspiElement(control);
+        return new int[]{element.getObjectPath().hashCode()};
+    }
+
+    @Override
+    public ControlType getElementControlType(Control control) {
+        AtspiElement element = getAtspiElement(control);
+        int role = element.getRole();
+        return ControlType.fromAtspiRole(role);
+    }
+
     // ==================== 内部搜索方法 ====================
 
     /**
@@ -300,6 +381,29 @@ public class LinuxControlBackend implements ControlBackend {
             }
         }
         return null;
+    }
+
+    /**
+     * 深度优先搜索 UI 树，收集所有匹配元素
+     *
+     * @param element   当前遍历的元素
+     * @param condition 搜索条件
+     * @param depth     当前深度
+     * @param maxDepth  最大深度
+     * @param results   结果收集列表
+     */
+    private void searchAllElements(AtspiElement element, SearchCondition condition,
+                                    int depth, int maxDepth, List<Control> results) {
+        if (depth > maxDepth) return;
+        if (matchesCondition(element, condition)) {
+            SearchCondition matchCond = SearchCondition.builder().build();
+            Control control = LinuxControlFactory.createControl(element, matchCond);
+            results.add(control);
+        }
+        List<AtspiElement> children = element.getChildren();
+        for (AtspiElement child : children) {
+            searchAllElements(child, condition, depth + 1, maxDepth, results);
+        }
     }
 
     /**

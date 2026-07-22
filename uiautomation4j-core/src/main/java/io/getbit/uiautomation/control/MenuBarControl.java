@@ -19,8 +19,4 @@ public class MenuBarControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.MenuBar;
-    }
 }

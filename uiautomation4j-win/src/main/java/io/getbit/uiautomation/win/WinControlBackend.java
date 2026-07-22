@@ -16,6 +16,9 @@ import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.OleAuto;
 import com.sun.jna.ptr.PointerByReference;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Windows 平台的 ControlBackend 实现
  *
@@ -133,7 +136,8 @@ public class WinControlBackend implements ControlBackend {
             throw new AutomationException("控件不支持 WindowPattern");
         }
         IUIAutomationWindowPattern comPattern = new IUIAutomationWindowPattern(patternPtr);
-        return new WinWindowPattern(comPattern);
+        long hwnd = element.getNativeWindowHandle();
+        return new WinWindowPattern(comPattern, hwnd);
     }
 
     @Override
@@ -281,6 +285,118 @@ public class WinControlBackend implements ControlBackend {
     public boolean isVisible(Control control) {
         IUIAutomationElement element = getElement(control);
         return !element.isOffscreen();
+    }
+
+    // ==================== 批量查找与树遍历 ====================
+
+    @Override
+    public List<Control> findControls(SearchCondition condition) {
+        List<Control> results = new ArrayList<>();
+        IUIAutomationElement root;
+        if (condition.getSearchFrom() != null) {
+            Control parentControl = findControl(condition.getSearchFrom());
+            root = (IUIAutomationElement) parentControl.getNativeElement();
+        } else {
+            root = automation.getRootElement();
+        }
+        if (root == null) return results;
+
+        int scope = IUIAutomation.TreeScope_Subtree;
+        if (condition.getSearchDepth() == 1) {
+            scope = IUIAutomation.TreeScope_Children;
+        }
+
+        IUIAutomationCondition comCondition = buildComCondition(condition);
+        if (comCondition == null) comCondition = trueCondition;
+
+        Pointer arrayPtr = root.findAll(scope, comCondition);
+        if (arrayPtr == null || arrayPtr == Pointer.NULL) return results;
+
+        IUIAutomationElementArray elementArray = new IUIAutomationElementArray(arrayPtr);
+        int length = elementArray.getLength();
+        for (int i = 0; i < length; i++) {
+            IUIAutomationElement elem = elementArray.getElement(i);
+            if (elem != null && matchesCondition(elem, condition)) {
+                Control control = WinControlFactory.createControl(elem, condition);
+                control.setNativeElement(elem);
+                control.setElementFound(true);
+                results.add(control);
+            }
+        }
+        return results;
+    }
+
+    @Override
+    public List<Control> getChildren(Control parent) {
+        List<Control> children = new ArrayList<>();
+        IUIAutomationElement element = getElement(parent);
+        IUIAutomationTreeWalker walker = automation.createTreeWalker(trueCondition);
+        IUIAutomationElement child = walker.getFirstChildElement(element);
+        while (child != null) {
+            SearchCondition childCond = SearchCondition.builder().build();
+            Control control = WinControlFactory.createControl(child, childCond);
+            control.setNativeElement(child);
+            control.setElementFound(true);
+            children.add(control);
+            child = walker.getNextSiblingElement(child);
+        }
+        walker.dispose();
+        return children;
+    }
+
+    @Override
+    public Control getFirstChild(Control parent) {
+        IUIAutomationElement element = getElement(parent);
+        IUIAutomationElement firstChild = element.getFirstChild();
+        if (firstChild == null) return null;
+        SearchCondition childCond = SearchCondition.builder().build();
+        Control control = WinControlFactory.createControl(firstChild, childCond);
+        control.setNativeElement(firstChild);
+        control.setElementFound(true);
+        return control;
+    }
+
+    @Override
+    public Control getNextSibling(Control control) {
+        IUIAutomationElement element = getElement(control);
+        IUIAutomationElement nextSibling = element.getNextSibling();
+        if (nextSibling == null) return null;
+        SearchCondition siblingCond = SearchCondition.builder().build();
+        Control siblingControl = WinControlFactory.createControl(nextSibling, siblingCond);
+        siblingControl.setNativeElement(nextSibling);
+        siblingControl.setElementFound(true);
+        return siblingControl;
+    }
+
+    // ==================== 原生属性直接访问 ====================
+
+    @Override
+    public String getElementName(Control control) {
+        IUIAutomationElement element = getElement(control);
+        return element.getName();
+    }
+
+    @Override
+    public int[] getElementBoundingRectangle(Control control) {
+        IUIAutomationElement element = getElement(control);
+        return element.getBoundingRectangle();
+    }
+
+    @Override
+    public int[] getElementRuntimeId(Control control) {
+        IUIAutomationElement element = getElement(control);
+        return element.getRuntimeId();
+    }
+
+    @Override
+    public ControlType getElementControlType(Control control) {
+        IUIAutomationElement element = getElement(control);
+        int typeId = element.getControlType();
+        try {
+            return ControlType.fromId(typeId);
+        } catch (IllegalArgumentException e) {
+            return ControlType.Pane; // 未知类型回退
+        }
     }
 
     // ==================== 内部方法 ====================

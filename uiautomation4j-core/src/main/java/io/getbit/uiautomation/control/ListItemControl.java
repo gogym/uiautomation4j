@@ -19,8 +19,4 @@ public class ListItemControl extends Control {
         super(searchCondition);
     }
 
-    @Override
-    public ControlType getControlType() {
-        return ControlType.ListItem;
-    }
 }
