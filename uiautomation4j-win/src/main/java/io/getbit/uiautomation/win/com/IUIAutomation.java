@@ -12,7 +12,7 @@ import com.sun.jna.ptr.PointerByReference;
  *
  * <pre>
  * CLSID_CUIAutomation: {ff48dba4-60ef-4201-aa87-54103eef594e}
- * IID_IUIAutomation:   {30c25b32-5606-446a-b2ca-1be52e3c8a9f}
+ * IID_IUIAutomation:   {30cbe57d-d9d0-452a-ab13-7ac5ac4825ee}
  *
  * Vtable 布局（继承自 IUnknown）:
  *   [0] QueryInterface(REFIID riid, void** ppvObject) -> HRESULT
@@ -22,29 +22,29 @@ import com.sun.jna.ptr.PointerByReference;
  *   [3]  CompareElements(IUIAutomationElement* el1, IUIAutomationElement* el2, BOOL* areSame) -> HRESULT
  *   [4]  CompareRuntimeIds(SAFEARRAY(int) rid1, SAFEARRAY(int) rid2, BOOL* areSame) -> HRESULT
  *   [5]  GetRootElement(IUIAutomationElement** ppRoot) -> HRESULT
- *   [6]  GetFocusedElement(IUIAutomationElement** ppFocused) -> HRESULT
- *   [7]  GetRootElementBuildCache(...) -> HRESULT
- *   [8]  GetFocusedElementBuildCache(...) -> HRESULT
- *   [9]  CreateTreeWalker(IUIAutomationCondition* pCondition, IUIAutomationTreeWalker** ppWalker) -> HRESULT
- *   [10] get_CachedTreeWalker (property)
- *   [11] get_ElementFromHandle(...) 
- *   [12] get_ElementFromPoint(...)
- *   [13] get_ElementFromHandleBuildCache(...)
- *   [14] get_ElementFromPointBuildCache(...)
- *   [15] get_FocusedElementBuildCache(...)
- *   [16] AddAutomationEventHandler(...)
- *   [17] RemoveAutomationEventHandler(...)
- *   [18] CreatePropertyCondition(PROPERTYID propertyId, VARIANT value, IUIAutomationCondition** ppCondition) -> HRESULT
- *   [19] CreateTrueCondition(IUIAutomationCondition** ppCondition) -> HRESULT
- *   [20] CreateFalseCondition(IUIAutomationCondition** ppCondition) -> HRESULT
- *   [21] CreateAndCondition(...)
- *   [22] CreateOrCondition(...)
+ *   [6]  ElementFromHandle(VARIANT* hwnd, IUIAutomationElement** ppElement) -> HRESULT
+ *   [7]  ElementFromPoint(POINT pt, IUIAutomationElement** ppElement) -> HRESULT
+ *   [8]  GetFocusedElement(IUIAutomationElement** ppFocused) -> HRESULT
+ *   [9]  GetRootElementBuildCache(...) -> HRESULT
+ *   [10] ElementFromHandleBuildCache(...) -> HRESULT
+ *   [11] ElementFromPointBuildCache(...) -> HRESULT
+ *   [12] GetFocusedElementBuildCache(...) -> HRESULT
+ *   [13] CreateTreeWalker(IUIAutomationCondition* pCondition, IUIAutomationTreeWalker** ppWalker) -> HRESULT
+ *   [14] get_ControlViewWalker (property)
+ *   [15] get_ContentViewWalker (property)
+ *   [16] get_RawViewWalker (property)
+ *   ...
+ *   [20] CreatePropertyCondition(PROPERTYID propertyId, VARIANT value, IUIAutomationCondition** ppCondition) -> HRESULT
+ *   [21] CreateTrueCondition(IUIAutomationCondition** ppCondition) -> HRESULT
+ *   [22] CreateFalseCondition(IUIAutomationCondition** ppCondition) -> HRESULT
+ *   [23] CreateAndCondition(...) -> HRESULT
+ *   [24] CreateOrCondition(...) -> HRESULT
  * </pre>
  */
 public class IUIAutomation extends COMObject {
 
     public static final String CLSID = "{ff48dba4-60ef-4201-aa87-54103eef594e}";
-    public static final String IID = "{30c25b32-5606-446a-b2ca-1be52e3c8a9f}";
+    public static final String IID = "{30cbe57d-d9d0-452a-ab13-7ac5ac4825ee}";
 
     // Property IDs
     public static final int UIA_NamePropertyId = 30005;
@@ -92,12 +92,12 @@ public class IUIAutomation extends COMObject {
      * 获取当前拥有键盘焦点的元素
      * <pre>
      * COM 签名: HRESULT GetFocusedElement(IUIAutomationElement** ppFocused);
-     * vtable index: 6
+     * vtable index: 8
      * </pre>
      */
     public IUIAutomationElement getFocusedElement() {
         PointerByReference ppElement = new PointerByReference();
-        invokeVtable(6, new Object[]{ppElement});
+        invokeVtable(8, new Object[]{ppElement});
         Pointer elementPtr = ppElement.getValue();
         if (elementPtr == null || elementPtr == Pointer.NULL) {
             return null;
@@ -113,12 +113,12 @@ public class IUIAutomation extends COMObject {
      *     [in] VARIANT value,
      *     [out, retval] IUIAutomationCondition** ppCondition
      * );
-     * vtable index: 18
+     * vtable index: 20
      * </pre>
      */
     public IUIAutomationCondition createPropertyCondition(int propertyId, Pointer value) {
         PointerByReference ppCondition = new PointerByReference();
-        invokeVtable(18, new Object[]{propertyId, value, ppCondition});
+        invokeVtable(20, new Object[]{propertyId, value, ppCondition});
         Pointer condPtr = ppCondition.getValue();
         if (condPtr == null || condPtr == Pointer.NULL) {
             return null;
@@ -130,12 +130,12 @@ public class IUIAutomation extends COMObject {
      * 创建 True 条件（匹配所有元素）
      * <pre>
      * COM 签名: HRESULT CreateTrueCondition(IUIAutomationCondition** ppCondition);
-     * vtable index: 19
+     * vtable index: 21
      * </pre>
      */
     public IUIAutomationCondition createTrueCondition() {
         PointerByReference ppCondition = new PointerByReference();
-        invokeVtable(19, new Object[]{ppCondition});
+        invokeVtable(21, new Object[]{ppCondition});
         return new IUIAutomationCondition(ppCondition.getValue());
     }
 
@@ -146,12 +146,12 @@ public class IUIAutomation extends COMObject {
      *     [in] IUIAutomationCondition* pCondition,
      *     [out, retval] IUIAutomationTreeWalker** ppWalker
      * );
-     * vtable index: 9
+     * vtable index: 13
      * </pre>
      */
     public IUIAutomationTreeWalker createTreeWalker(IUIAutomationCondition condition) {
         PointerByReference ppWalker = new PointerByReference();
-        invokeVtable(9, new Object[]{condition.getPointer(), ppWalker});
+        invokeVtable(13, new Object[]{condition.getPointer(), ppWalker});
         Pointer walkerPtr = ppWalker.getValue();
         if (walkerPtr == null || walkerPtr == Pointer.NULL) {
             return null;
@@ -167,13 +167,13 @@ public class IUIAutomation extends COMObject {
      *     [in] IUIAutomationCondition* pCondition2,
      *     [out, retval] IUIAutomationCondition** ppCondition
      * );
-     * vtable index: 21
+     * vtable index: 23
      * </pre>
      */
     public IUIAutomationCondition createAndCondition(IUIAutomationCondition condition1,
                                                       IUIAutomationCondition condition2) {
         PointerByReference ppCondition = new PointerByReference();
-        invokeVtable(21, new Object[]{condition1.getPointer(), condition2.getPointer(), ppCondition});
+        invokeVtable(23, new Object[]{condition1.getPointer(), condition2.getPointer(), ppCondition});
         Pointer condPtr = ppCondition.getValue();
         if (condPtr == null || condPtr == Pointer.NULL) {
             return null;
