@@ -80,7 +80,7 @@ public class MacControlBackend implements ControlBackend {
         AXUIElement startElement = resolveStartElement(condition);
         int maxDepth = condition.getSearchDepth() > 0 ? condition.getSearchDepth() : Integer.MAX_VALUE;
 
-        AXUIElement found = searchElement(startElement, condition, 0, maxDepth, new int[]{0});
+        AXUIElement found = searchElement(startElement, condition, 0, maxDepth, new int[]{1});
         if (found == null) {
             throw new ControlNotFoundException(condition.toString());
         }
@@ -102,7 +102,7 @@ public class MacControlBackend implements ControlBackend {
             try {
                 AXUIElement startElement = resolveStartElement(condition);
                 int maxDepth = condition.getSearchDepth() > 0 ? condition.getSearchDepth() : Integer.MAX_VALUE;
-                AXUIElement found = searchElement(startElement, condition, 0, maxDepth, new int[]{0});
+                AXUIElement found = searchElement(startElement, condition, 0, maxDepth, new int[]{1});
                 if (found != null) {
                     found.close();
                     return true;
@@ -345,6 +345,36 @@ public class MacControlBackend implements ControlBackend {
         AXUIElement element = getAXElement(control);
         String role = element.getRole();
         return ControlType.fromMacRole(role);
+    }
+
+    @Override
+    public String getElementClassName(Control control) {
+        AXUIElement element = getAXElement(control);
+        String role = element.getRole();
+        String subrole = element.getStringAttribute(AXAttribute.SUBROLE);
+        if (subrole != null && !subrole.isEmpty()) {
+            return role + ":" + subrole;
+        }
+        return role != null ? role : "";
+    }
+
+    @Override
+    public int getElementProcessId(Control control) {
+        AXUIElement element = getAXElement(control);
+        // 尝试获取 AXProcessIdentifier 属性
+        Pointer pidRef = element.getAttribute(AXAttribute.PROCESS_ID);
+        if (pidRef != null && pidRef != Pointer.NULL) {
+            try {
+                // AXProcessIdentifier 是 CFNumber 类型，使用 kCFNumberIntType=9 提取
+                int[] value = new int[1];
+                if (ApplicationServices.INSTANCE.CFNumberGetValue(pidRef, 9, value)) {
+                    return value[0];
+                }
+            } finally {
+                CFUtil.release(pidRef);
+            }
+        }
+        return 0;
     }
 
     // ==================== 内部搜索方法 ====================

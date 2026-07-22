@@ -73,4 +73,13 @@ public class WindowControl extends Control {
     public void minimize() {
         getWindowPattern().minimize();
     }
+
+    /**
+     * 恢复窗口（从最小化或最大化状态恢复）
+     * <p>通过 {@link WindowPattern#restore()} 实现，
+     * 对应 COM 方法: {@code SetWindowVisualState(WindowVisualState_Normal)}</p>
+     */
+    public void restore() {
+        getWindowPattern().restore();
+    }
 }

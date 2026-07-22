@@ -8,13 +8,21 @@ package io.getbit.uiautomation.pattern;
  *
  * <p>支持控件：ScrollBars、List、DataGrid 等</p>
  *
- * <p>滚动方向常量对应 UIAutomation 的 {@code ScrollAmount} 枚举：</p>
+ * <p>滚动方向常量（SCROLL_DIRECTION_*）用于指定滚动方向：</p>
  * <ul>
- *   <li>{@code SCROLL_DIRECTION_NO_AMOUNT (0)} - 不滚动</li>
- *   <li>{@code SCROLL_DIRECTION_SMALL_DECREMENT (1)} - 小幅减少（如点击箭头）</li>
- *   <li>{@code SCROLL_DIRECTION_SMALL_INCREMENT (2)} - 小幅增加</li>
- *   <li>{@code SCROLL_DIRECTION_LARGE_DECREMENT (3)} - 大幅减少（如点击滚动条空白区）</li>
- *   <li>{@code SCROLL_DIRECTION_LARGE_INCREMENT (4)} - 大幅增加</li>
+ *   <li>{@code SCROLL_DIRECTION_LEFT (0)} - 向左</li>
+ *   <li>{@code SCROLL_DIRECTION_RIGHT (1)} - 向右</li>
+ *   <li>{@code SCROLL_DIRECTION_UP (2)} - 向上</li>
+ *   <li>{@code SCROLL_DIRECTION_DOWN (3)} - 向下</li>
+ * </ul>
+ *
+ * <p>滚动量常量（SCROLL_AMOUNT_*）对应 UIAutomation 的 {@code ScrollAmount} 枚举：</p>
+ * <ul>
+ *   <li>{@code SCROLL_AMOUNT_NO_AMOUNT (0)} - 不滚动</li>
+ *   <li>{@code SCROLL_AMOUNT_SMALL_DECREMENT (1)} - 小幅减少（如点击箭头）</li>
+ *   <li>{@code SCROLL_AMOUNT_SMALL_INCREMENT (2)} - 小幅增加</li>
+ *   <li>{@code SCROLL_AMOUNT_LARGE_DECREMENT (3)} - 大幅减少（如点击滚动条空白区）</li>
+ *   <li>{@code SCROLL_AMOUNT_LARGE_INCREMENT (4)} - 大幅增加</li>
  * </ul>
  */
 public interface ScrollPattern extends Pattern {
@@ -28,15 +36,15 @@ public interface ScrollPattern extends Pattern {
     /** 滚动方向：向下 */
     int SCROLL_DIRECTION_DOWN = 3;
     /** 滚动量：不滚动 */
-    int SCROLL_DIRECTION_NO_AMOUNT = 0;
+    int SCROLL_AMOUNT_NO_AMOUNT = 0;
     /** 滚动量：小幅减少（如点击箭头按钮） */
-    int SCROLL_DIRECTION_SMALL_DECREMENT = 1;
+    int SCROLL_AMOUNT_SMALL_DECREMENT = 1;
     /** 滚动量：小幅增加 */
-    int SCROLL_DIRECTION_SMALL_INCREMENT = 2;
+    int SCROLL_AMOUNT_SMALL_INCREMENT = 2;
     /** 滚动量：大幅减少（如点击滚动条空白区域） */
-    int SCROLL_DIRECTION_LARGE_DECREMENT = 3;
+    int SCROLL_AMOUNT_LARGE_DECREMENT = 3;
     /** 滚动量：大幅增加 */
-    int SCROLL_DIRECTION_LARGE_INCREMENT = 4;
+    int SCROLL_AMOUNT_LARGE_INCREMENT = 4;
 
     /**
      * 滚动

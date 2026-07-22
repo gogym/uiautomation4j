@@ -67,7 +67,7 @@ public abstract class Control {
      */
     public String getClassName() {
         ensureElement();
-        return getBackend().getElementName(this); // 默认实现，子类可覆盖
+        return getBackend().getElementClassName(this);
     }
 
     /**
@@ -110,7 +110,7 @@ public abstract class Control {
      */
     public int getProcessId() {
         ensureElement();
-        return getBackend().findControl(searchCondition).getProcessId();
+        return getBackend().getElementProcessId(this);
     }
 
     // ==================== 搜索子控件 ====================

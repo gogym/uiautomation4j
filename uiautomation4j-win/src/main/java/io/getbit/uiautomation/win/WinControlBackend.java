@@ -399,6 +399,19 @@ public class WinControlBackend implements ControlBackend {
         }
     }
 
+    @Override
+    public String getElementClassName(Control control) {
+        IUIAutomationElement element = getElement(control);
+        String className = element.getClassName();
+        return className != null ? className : "";
+    }
+
+    @Override
+    public int getElementProcessId(Control control) {
+        IUIAutomationElement element = getElement(control);
+        return element.getProcessId();
+    }
+
     // ==================== 内部方法 ====================
 
     /**

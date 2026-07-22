@@ -61,18 +61,39 @@ public class MacValuePattern implements ValuePattern {
 
     /**
      * 检查控件值是否只读
-     * <p>macOS 没有直接的 IsReadOnly 属性，通过尝试设置值来判断。
-     * 如果设置失败则认为只读。</p>
+     * <p>macOS 没有直接的 IsReadOnly 属性，通过检查控件是否支持
+     * AXValue 属性以及是否支持文本输入来间接判断。</p>
      *
      * @return 如果只读返回 true
      */
     public boolean isReadOnly() {
-        // macOS 没有直接的 IsReadOnly 属性
-        // 通过检查是否支持 AXValue 的写入来间接判断
-        String currentValue = getValue();
-        if (currentValue == null) {
-            return true; // 无法读取值，认为只读
+        // 检查是否支持 AXValue 属性
+        Pointer valueRef = element.getAttribute(AXAttribute.VALUE);
+        if (valueRef == null || valueRef == Pointer.NULL) {
+            return true; // 不支持 AXValue 属性，认为只读
         }
-        return false;
+        CFUtil.release(valueRef);
+
+        // 检查是否支持文本插入动作（可编辑的标志）
+        Pointer actionsRef = element.getAttribute("AXActions");
+        if (actionsRef != null && actionsRef != Pointer.NULL) {
+            try {
+                long count = CFUtil.getArrayCount(actionsRef);
+                for (int i = 0; i < count; i++) {
+                    Pointer actionPtr = CFUtil.getArrayValue(actionsRef, i);
+                    if (actionPtr != null && actionPtr != Pointer.NULL) {
+                        String actionName = CFUtil.pointerToJavaString(actionPtr);
+                        if ("AXInsertText".equals(actionName)) {
+                            return false; // 支持文本插入，可编辑
+                        }
+                    }
+                }
+            } finally {
+                CFUtil.release(actionsRef);
+            }
+        }
+
+        // 默认认为只读
+        return true;
     }
 }

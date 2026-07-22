@@ -282,8 +282,8 @@ public class PatternExample {
             // 向下滚动一小段
             if (vScrollable) {
                 scrollPattern.scroll(
-                        ScrollPattern.SCROLL_DIRECTION_NO_AMOUNT, 0,
-                        ScrollPattern.SCROLL_DIRECTION_SMALL_INCREMENT, 1.0);
+                        ScrollPattern.SCROLL_AMOUNT_NO_AMOUNT, ScrollPattern.SCROLL_DIRECTION_DOWN,
+                        0, 1.0);
                 System.out.println("  已向下滚动一小段");
             }
 

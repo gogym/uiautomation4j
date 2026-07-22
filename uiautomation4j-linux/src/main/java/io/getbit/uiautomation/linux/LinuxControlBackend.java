@@ -68,7 +68,7 @@ public class LinuxControlBackend implements ControlBackend {
         AtspiElement startElement = resolveStartElement(condition);
         int maxDepth = condition.getSearchDepth() > 0 ? condition.getSearchDepth() : Integer.MAX_VALUE;
 
-        AtspiElement found = searchElement(startElement, condition, 0, maxDepth, new int[]{0});
+        AtspiElement found = searchElement(startElement, condition, 0, maxDepth, new int[]{1});
         if (found == null) {
             throw new ControlNotFoundException(condition.toString());
         }
@@ -90,7 +90,7 @@ public class LinuxControlBackend implements ControlBackend {
             try {
                 AtspiElement startElement = resolveStartElement(condition);
                 int maxDepth = condition.getSearchDepth() > 0 ? condition.getSearchDepth() : Integer.MAX_VALUE;
-                AtspiElement found = searchElement(startElement, condition, 0, maxDepth, new int[]{0});
+                AtspiElement found = searchElement(startElement, condition, 0, maxDepth, new int[]{1});
                 if (found != null) {
                     return true;
                 }
@@ -328,6 +328,19 @@ public class LinuxControlBackend implements ControlBackend {
         AtspiElement element = getAtspiElement(control);
         int role = element.getRole();
         return ControlType.fromAtspiRole(role);
+    }
+
+    @Override
+    public String getElementClassName(Control control) {
+        AtspiElement element = getAtspiElement(control);
+        String roleName = element.getRoleName();
+        return roleName != null ? roleName : "";
+    }
+
+    @Override
+    public int getElementProcessId(Control control) {
+        // AT-SPI2 没有直接的 ProcessId 属性，返回 0 表示未知
+        return 0;
     }
 
     // ==================== 内部搜索方法 ====================

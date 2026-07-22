@@ -230,6 +230,17 @@ public interface ApplicationServices extends Library {
      */
     boolean CFNumberGetValue(Pointer number, int type, double[] value);
 
+    /**
+     * 从 CFNumber 获取整数值
+     * <p>JNA 未内置此函数，通过 ApplicationServices 框架间接调用。</p>
+     *
+     * @param number CFNumberRef 指针
+     * @param type   数值类型（9 = kCFNumberIntType）
+     * @param value  [out] 输出缓冲区（int[1]）
+     * @return 如果成功返回 true
+     */
+    boolean CFNumberGetValue(Pointer number, int type, int[] value);
+
     // ==================== 辅助功能选项 ====================
 
     /**

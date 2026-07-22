@@ -170,6 +170,22 @@ public interface ControlBackend {
     int[] getElementRuntimeId(Control control);
 
     /**
+     * 直接从 native element 获取控件类名
+     *
+     * @param control 控件
+     * @return 控件类名（Windows 为 ClassName，macOS 为 AXRole+AXSubrole，Linux 为 RoleName）
+     */
+    String getElementClassName(Control control);
+
+    /**
+     * 直接从 native element 获取控件所属进程 ID
+     *
+     * @param control 控件
+     * @return 进程 ID
+     */
+    int getElementProcessId(Control control);
+
+    /**
      * 直接从 native element 获取控件实际类型
      *
      * @param control 控件
