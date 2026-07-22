@@ -182,7 +182,9 @@ public class AXUIElement implements AutoCloseable {
                 for (int i = 0; i < count; i++) {
                     Pointer childPtr = CFUtil.getArrayValue(childrenArray, i);
                     if (childPtr != null && childPtr != Pointer.NULL) {
-                        children.add(new AXUIElement(childPtr, false));
+                        // CFArrayGetValueAtIndex 返回借用引用，必须在父数组释放前 CFRetain
+                        CFUtil.retain(childPtr);
+                        children.add(new AXUIElement(childPtr, true));
                     }
                 }
             } finally {

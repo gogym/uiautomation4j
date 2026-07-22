@@ -162,6 +162,20 @@ public final class CFUtil {
     }
 
     /**
+     * 安全保留 CF 对象（Pointer 版本）
+     * <p>增加引用计数，防止在父容器释放后子元素指针失效。</p>
+     *
+     * @param ptr CFTypeRef 底层指针
+     */
+    public static void retain(Pointer ptr) {
+        if (ptr != null && ptr != Pointer.NULL) {
+            CFTypeRef ref = new CFTypeRef();
+            ref.setPointer(ptr);
+            CoreFoundation.INSTANCE.CFRetain(ref);
+        }
+    }
+
+    /**
      * 从 CFNumber 提取 double 值
      *
      * @param cfNumberPtr CFNumberRef 底层指针
