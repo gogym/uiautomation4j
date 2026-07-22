@@ -57,6 +57,7 @@ public class WinAutomation {
     public static synchronized void shutdown() {
         if (initialized) {
             io.getbit.uiautomation.win.com.Win32Util.uninitCOM();
+            Control.registerBackend(null);
             initialized = false;
         }
     }

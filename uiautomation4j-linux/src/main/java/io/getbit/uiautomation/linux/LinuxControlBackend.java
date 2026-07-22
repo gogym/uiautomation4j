@@ -343,6 +343,11 @@ public class LinuxControlBackend implements ControlBackend {
         return 0;
     }
 
+    @Override
+    public String getElementAutomationId(Control control) {
+        return "";
+    }
+
     // ==================== 内部搜索方法 ====================
 
     /**

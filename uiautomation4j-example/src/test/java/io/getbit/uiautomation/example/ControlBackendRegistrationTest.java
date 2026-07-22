@@ -67,7 +67,7 @@ class ControlBackendRegistrationTest {
     class RegisterBackendTest {
 
         /** 一个简单的 Mock Backend */
-        static class MockBackend implements ControlBackend {
+        class MockBackend implements ControlBackend {
             @Override public Control findControl(SearchCondition c) { return null; }
             @Override public boolean exists(SearchCondition c, int t) { return false; }
             @Override public ValuePattern getValuePattern(Control c) { return null; }
@@ -95,6 +95,7 @@ class ControlBackendRegistrationTest {
             @Override public String getElementClassName(Control c) { return "MockClass"; }
             @Override public int getElementProcessId(Control c) { return 1234; }
             @Override public ControlType getElementControlType(Control c) { return ControlType.Button; }
+            @Override public String getElementAutomationId(Control c) { return "mockId"; }
             @Override public Control getFirstChild(Control p) { return null; }
             @Override public Control getNextSibling(Control c) { return null; }
         }

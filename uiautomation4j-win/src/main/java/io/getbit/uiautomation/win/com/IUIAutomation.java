@@ -158,4 +158,26 @@ public class IUIAutomation extends COMObject {
         }
         return new IUIAutomationTreeWalker(walkerPtr);
     }
+
+    /**
+     * 创建 And 条件（组合多个条件）
+     * <pre>
+     * COM 签名: HRESULT CreateAndCondition(
+     *     [in] IUIAutomationCondition* pCondition1,
+     *     [in] IUIAutomationCondition* pCondition2,
+     *     [out, retval] IUIAutomationCondition** ppCondition
+     * );
+     * vtable index: 21
+     * </pre>
+     */
+    public IUIAutomationCondition createAndCondition(IUIAutomationCondition condition1,
+                                                      IUIAutomationCondition condition2) {
+        PointerByReference ppCondition = new PointerByReference();
+        invokeVtable(21, new Object[]{condition1.getPointer(), condition2.getPointer(), ppCondition});
+        Pointer condPtr = ppCondition.getValue();
+        if (condPtr == null || condPtr == Pointer.NULL) {
+            return null;
+        }
+        return new IUIAutomationCondition(condPtr);
+    }
 }

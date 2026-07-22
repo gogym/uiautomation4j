@@ -194,6 +194,14 @@ public interface ControlBackend {
     ControlType getElementControlType(Control control);
 
     /**
+     * 直接从 native element 获取 AutomationId
+     *
+     * @param control 控件
+     * @return AutomationId，如果不可用返回空字符串
+     */
+    String getElementAutomationId(Control control);
+
+    /**
      * 获取第一个子控件
      *
      * @param parent 父控件

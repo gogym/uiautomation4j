@@ -82,7 +82,12 @@ public abstract class COMObject implements AutoCloseable {
         System.arraycopy(args, 0, fullArgs, 1, args.length);
         // 调用并返回 HRESULT
         int hrValue = function.invokeInt(fullArgs);
-        return new WinNT.HRESULT(hrValue);
+        WinNT.HRESULT hr = new WinNT.HRESULT(hrValue);
+        if (hrValue < 0) {
+            throw new AutomationException("COM vtable 调用失败, vtableIndex=" + vtableIndex
+                    + ", HRESULT=0x" + String.format("%08X", hrValue));
+        }
+        return hr;
     }
 
     /**

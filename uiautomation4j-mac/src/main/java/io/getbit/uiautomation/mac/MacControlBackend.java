@@ -377,6 +377,13 @@ public class MacControlBackend implements ControlBackend {
         return 0;
     }
 
+    @Override
+    public String getElementAutomationId(Control control) {
+        AXUIElement element = getAXElement(control);
+        String id = element.getStringAttribute(AXAttribute.IDENTIFIER);
+        return id != null ? id : "";
+    }
+
     // ==================== 内部搜索方法 ====================
 
     /**

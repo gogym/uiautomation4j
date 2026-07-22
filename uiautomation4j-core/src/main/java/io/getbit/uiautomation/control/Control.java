@@ -75,7 +75,7 @@ public abstract class Control {
      */
     public String getAutomationId() {
         ensureElement();
-        return ""; // 默认实现，平台层可覆盖
+        return getBackend().getElementAutomationId(this);
     }
 
     /**

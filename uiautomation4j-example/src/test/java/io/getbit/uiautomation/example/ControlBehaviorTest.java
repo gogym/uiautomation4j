@@ -76,6 +76,7 @@ class ControlBehaviorTest {
         @Override public String getElementClassName(Control c) { return className; }
         @Override public int getElementProcessId(Control c) { return processId; }
         @Override public ControlType getElementControlType(Control c) { return controlType; }
+        @Override public String getElementAutomationId(Control c) { return "testAutoId"; }
         @Override public Control getFirstChild(Control p) { return null; }
         @Override public Control getNextSibling(Control c) { return null; }
     }
@@ -180,12 +181,12 @@ class ControlBehaviorTest {
         }
 
         @Test
-        @DisplayName("getAutomationId 默认返回空字符串")
+        @DisplayName("getAutomationId 应调用 backend.getElementAutomationId")
         void testGetAutomationIdDefault() {
             ButtonControl btn = new ButtonControl(SearchCondition.builder().name("test").build());
             btn.setElementFound(true);
             btn.setNativeElement(new Object());
-            assertEquals("", btn.getAutomationId());
+            assertEquals("testAutoId", btn.getAutomationId());
         }
     }
 

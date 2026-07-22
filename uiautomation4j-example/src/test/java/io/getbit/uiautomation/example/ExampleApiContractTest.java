@@ -172,6 +172,7 @@ class ExampleApiContractTest {
             assertNotNull(backend.getMethod("getElementBoundingRectangle", Control.class));
             assertNotNull(backend.getMethod("getElementRuntimeId", Control.class));
             assertNotNull(backend.getMethod("getElementControlType", Control.class));
+            assertNotNull(backend.getMethod("getElementAutomationId", Control.class));
         }
     }
 

@@ -41,12 +41,12 @@ public class WinTransformPattern implements TransformPattern {
 
     @Override
     public void move(int x, int y) {
-        comPattern.callVtable(3, new Object[]{x, y});
+        comPattern.callVtable(3, new Object[]{(double) x, (double) y});
     }
 
     @Override
     public void resize(int width, int height) {
-        comPattern.callVtable(4, new Object[]{width, height});
+        comPattern.callVtable(4, new Object[]{(double) width, (double) height});
     }
 
     @Override

@@ -564,7 +564,7 @@ public class IUIAutomationElement extends COMObject {
      */
     public int[] getBoundingRectangle() {
         int[] rect = new int[4];
-        invokeVtable(43, new Object[]{rect});
+        invokeVtable(42, new Object[]{rect});
         return rect;
     }
 

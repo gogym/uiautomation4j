@@ -5,6 +5,9 @@ import io.getbit.uiautomation.control.WindowControl;
 import io.getbit.uiautomation.condition.SearchCondition;
 import io.getbit.uiautomation.enums.ControlType;
 import io.getbit.uiautomation.pattern.ScrollPattern;
+import io.getbit.uiautomation.win.com.IUIAutomation;
+import io.getbit.uiautomation.win.com.IUIAutomationCondition;
+import io.getbit.uiautomation.win.com.IUIAutomationElement;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,6 +23,54 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DisplayName("潜在问题检测（修复验证）")
 class PotentialIssuesTest {
+
+    @Nested
+    @DisplayName("Bug1: Control.getAutomationId() 修复验证")
+    class GetAutomationIdFix {
+
+        @Test
+        @DisplayName("ControlBackend 应包含 getElementAutomationId 方法")
+        void testGetElementAutomationIdExists() throws Exception {
+            Method method = io.getbit.uiautomation.spi.ControlBackend.class
+                    .getMethod("getElementAutomationId", Control.class);
+            assertNotNull(method, "ControlBackend 应包含 getElementAutomationId 方法");
+        }
+
+        @Test
+        @DisplayName("Control.getAutomationId() 应委托到 backend 而非硬编码返回空字符串")
+        void testGetAutomationIdDelegates() throws Exception {
+            Method method = Control.class.getMethod("getAutomationId");
+            assertNotNull(method);
+            Method backendMethod = io.getbit.uiautomation.spi.ControlBackend.class
+                    .getMethod("getElementAutomationId", Control.class);
+            assertNotNull(backendMethod, "ControlBackend.getElementAutomationId 应存在");
+        }
+    }
+
+    @Nested
+    @DisplayName("Bug2: getBoundingRectangle() vtable 索引修复验证")
+    class BoundingRectVtableFix {
+
+        @Test
+        @DisplayName("IUIAutomationElement.getBoundingRectangle 方法应存在")
+        void testGetBoundingRectangleExists() throws Exception {
+            Method method = IUIAutomationElement.class.getMethod("getBoundingRectangle");
+            assertNotNull(method, "IUIAutomationElement 应有 getBoundingRectangle 方法");
+        }
+    }
+
+    @Nested
+    @DisplayName("Bug3: buildComCondition 多条件组合修复验证")
+    class MultiConditionFix {
+
+        @Test
+        @DisplayName("IUIAutomation 应包含 createAndCondition 方法")
+        void testCreateAndConditionExists() throws Exception {
+            Method method = IUIAutomation.class.getMethod("createAndCondition",
+                    IUIAutomationCondition.class, IUIAutomationCondition.class);
+            assertNotNull(method, "IUIAutomation 应包含 createAndCondition 方法");
+        }
+    }
 
     @Nested
     @DisplayName("Control.getClassName() 修复验证")

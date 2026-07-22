@@ -44,7 +44,7 @@ public class WinScrollPattern implements ScrollPattern {
     @Override
     public void scroll(int horizontalDirection, int verticalDirection,
                        double horizontalAmount, double verticalAmount) {
-        // ScrollAmount enum mapping
+        // ScrollAmount enum mapping: 传递水平/垂直滚动量枚举值
         comPattern.callVtable(3, new Object[]{horizontalDirection, verticalDirection});
     }
 

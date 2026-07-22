@@ -259,8 +259,10 @@ public class WinControlBackend implements ControlBackend {
                     boolean enabled = element.isEnabled();
                     boolean visible = !element.isOffscreen();
                     if (enabled && visible) {
+                        element.release();
                         return true;
                     }
+                    element.release();
                 }
             } catch (Exception e) {
                 // 忽略异常，继续重试
@@ -407,6 +409,13 @@ public class WinControlBackend implements ControlBackend {
     }
 
     @Override
+    public String getElementAutomationId(Control control) {
+        IUIAutomationElement element = getElement(control);
+        String id = element.getAutomationId();
+        return id != null ? id : "";
+    }
+
+    @Override
     public int getElementProcessId(Control control) {
         IUIAutomationElement element = getElement(control);
         return element.getProcessId();
@@ -486,7 +495,7 @@ public class WinControlBackend implements ControlBackend {
                                                        SearchCondition condition,
                                                        IUIAutomationCondition comCondition,
                                                        int currentDepth) {
-        int maxDepth = condition.getSearchDepth();
+        int maxDepth = condition.getDepth();
         if (currentDepth > maxDepth) {
             return null;
         }
@@ -565,12 +574,13 @@ public class WinControlBackend implements ControlBackend {
      * @return COM 条件对象，如果没有可构建的条件则返回 null
      */
     private IUIAutomationCondition buildComCondition(SearchCondition condition) {
-        // 优先使用 Name 属性构建条件
+        java.util.List<IUIAutomationCondition> conditions = new java.util.ArrayList<>();
+
         if (condition.hasName()) {
             Pointer bstr = Win32Util.stringToBstr(condition.getName());
             try {
-                return automation.createPropertyCondition(
-                        IUIAutomation.UIA_NamePropertyId, bstr);
+                conditions.add(automation.createPropertyCondition(
+                        IUIAutomation.UIA_NamePropertyId, bstr));
             } finally {
                 Win32Util.freeBstr(bstr);
             }
@@ -578,8 +588,8 @@ public class WinControlBackend implements ControlBackend {
         if (condition.hasClassName()) {
             Pointer bstr = Win32Util.stringToBstr(condition.getClassName());
             try {
-                return automation.createPropertyCondition(
-                        IUIAutomation.UIA_ClassNamePropertyId, bstr);
+                conditions.add(automation.createPropertyCondition(
+                        IUIAutomation.UIA_ClassNamePropertyId, bstr));
             } finally {
                 Win32Util.freeBstr(bstr);
             }
@@ -587,8 +597,8 @@ public class WinControlBackend implements ControlBackend {
         if (condition.hasAutomationId()) {
             Pointer bstr = Win32Util.stringToBstr(condition.getAutomationId());
             try {
-                return automation.createPropertyCondition(
-                        IUIAutomation.UIA_AutomationIdPropertyId, bstr);
+                conditions.add(automation.createPropertyCondition(
+                        IUIAutomation.UIA_AutomationIdPropertyId, bstr));
             } finally {
                 Win32Util.freeBstr(bstr);
             }
@@ -597,10 +607,19 @@ public class WinControlBackend implements ControlBackend {
             com.sun.jna.platform.win32.Variant.VARIANT.ByReference v =
                     new com.sun.jna.platform.win32.Variant.VARIANT.ByReference();
             v.setValue(com.sun.jna.platform.win32.Variant.VT_INT, condition.getControlType().getId());
-            return automation.createPropertyCondition(
-                    IUIAutomation.UIA_ControlTypePropertyId, v.getPointer());
+            conditions.add(automation.createPropertyCondition(
+                    IUIAutomation.UIA_ControlTypePropertyId, v.getPointer()));
         }
-        return null;
+
+        if (conditions.isEmpty()) {
+            return null;
+        }
+
+        IUIAutomationCondition result = conditions.get(0);
+        for (int i = 1; i < conditions.size(); i++) {
+            result = automation.createAndCondition(result, conditions.get(i));
+        }
+        return result;
     }
 
     /**
