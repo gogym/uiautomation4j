@@ -12,6 +12,8 @@ import com.sun.jna.platform.win32.WTypes;
 import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.PointerByReference;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * Win32 / COM 工具类
  *
@@ -32,41 +34,25 @@ public class Win32Util {
     private static final ThreadLocal<Boolean> comInitialized = ThreadLocal.withInitial(() -> false);
     /** 每个线程中是否由本类调用了 CoInitializeEx（用于 uninitCOM 时判断是否需要反初始化） */
     private static final ThreadLocal<Boolean> comInitializedByUs = ThreadLocal.withInitial(() -> false);
-    /** CLSCTX_ALL = CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER | CLSCTX_REMOTE_SERVER */
-    private static final int CLSCTX_ALL = 0x17;
 
     /**
-     * 初始化 COM 库（每线程独立初始化）
+     * 初始化 COM 库（每线程独立初始化，STA 模式）
      * <p>COM 库的初始化是每线程的，每个使用 COM 的线程都必须独立调用
      * {@code CoInitializeEx}。此方法使用 {@link ThreadLocal} 跟踪每个线程的初始化状态。</p>
-     * <p>优先尝试 {@code COINIT_APARTMENTTHREADED}（STA 模式），
-     * 如果当前线程已经以不同模式初始化了 COM（例如 JavaFX 会以 MTA 模式初始化），
-     * 则回退到 {@code COINIT_MULTITHREADED}（MTA 模式）。</p>
+     * <p>始终使用 {@code COINIT_APARTMENTTHREADED}（STA 模式）初始化，
+     * 因为 UIA COM 对象要求 STA 线程。所有 UIA 操作应通过 {@link StaTaskExecutor}
+     * 在专用 STA 线程中执行。</p>
      */
     public static void initCOM() {
         if (!comInitialized.get()) {
-            // 先尝试 STA 模式
             WinNT.HRESULT hr = Ole32.INSTANCE.CoInitializeEx(null, Ole32.COINIT_APARTMENTTHREADED);
             if (hr.intValue() == 0 || hr.intValue() == 1) {
-                // S_OK=0 或 S_FALSE=1（已经初始化过，模式相同）
+                // S_OK=0: 首次初始化成功
+                // S_FALSE=1: 已以相同模式初始化过，需要匹配调用 CoUninitialize
                 comInitialized.set(true);
                 comInitializedByUs.set(true);
-            } else if (hr.intValue() == (int) 0x80010106L) {
-                // RPC_E_CHANGED_MODE - 线程已经以 MTA 模式初始化（如 JavaFX）
-                // 回退到 MTA 模式
-                hr = Ole32.INSTANCE.CoInitializeEx(null, Ole32.COINIT_MULTITHREADED);
-                if (hr.intValue() == 0 || hr.intValue() == 1) {
-                    comInitialized.set(true);
-                    comInitializedByUs.set(true);
-                } else if (hr.intValue() == (int) 0x80010106L) {
-                    // 已经是 MTA 模式，不需要再次初始化
-                    comInitialized.set(true);
-                    comInitializedByUs.set(false);
-                } else {
-                    throw new AutomationException("COM 初始化失败(MTA): 0x" + Integer.toHexString(hr.intValue()));
-                }
             } else {
-                throw new AutomationException("COM 初始化失败: 0x" + Integer.toHexString(hr.intValue()));
+                throw new AutomationException("COM 初始化失败(STA): 0x" + Integer.toHexString(hr.intValue()));
             }
         }
     }
@@ -119,62 +105,21 @@ public class Win32Util {
         Guid.GUID clsid = createGUID(clsidStr);
         Guid.GUID iid = createGUID(iidStr);
 
-        // 步骤 1: CoGetClassObject 获取 IClassFactory
-        PointerByReference ppFactory = new PointerByReference();
-        Guid.GUID icfIid = createGUID("{00000001-0000-0000-C000-000000000046}"); // IID_IClassFactory
-        Function coGetClassObject = Function.getFunction("ole32", "CoGetClassObject");
-        int hrFactory = coGetClassObject.invokeInt(new Object[]{
-                clsid.getPointer(), 0x1 /*CLSCTX_INPROC_SERVER*/, null, icfIid.getPointer(), ppFactory
+        // 直接调用 CoCreateInstance 创建 COM 实例
+        PointerByReference ppv = new PointerByReference();
+        Function coCreateInstance = Function.getFunction("ole32", "CoCreateInstance");
+        int hr = coCreateInstance.invokeInt(new Object[]{
+                clsid.getPointer(),          // rclsid
+                null,                        // pUnkOuter
+                0x1 | 0x4 | 0x10,           // dwClsContext = CLSCTX_ALL
+                iid.getPointer(),            // riid
+                ppv                          // ppv
         });
-        if (hrFactory != 0) {
-            throw new AutomationException("CoGetClassObject 失败: 0x" +
-                    Integer.toHexString(hrFactory) + " CLSID=" + clsidStr);
+        if (hr != 0) {
+            throw new AutomationException("CoCreateInstance 失败: 0x" +
+                    Integer.toHexString(hr) + " CLSID=" + clsidStr);
         }
-        Pointer factoryPtr = ppFactory.getValue();
-
-        try {
-            // 步骤 2: IClassFactory::CreateInstance 获取 IUnknown
-            // vtable: [0]=QueryInterface [1]=AddRef [2]=Release [3]=CreateInstance [4]=LockServer
-            Pointer factoryVtbl = factoryPtr.getPointer(0);
-            Function createInstFn = Function.getFunction(factoryVtbl.getPointer(3 * Native.POINTER_SIZE));
-            PointerByReference ppUnk = new PointerByReference();
-            // CreateInstance(pUnkOuter=null, riid=IID_IUnknown, ppvObject)
-            Guid.GUID iunkIid = createGUID("{00000000-0000-0000-C000-000000000046}"); // IID_IUnknown
-            int hrCreate = createInstFn.invokeInt(new Object[]{
-                    factoryPtr, null, iunkIid.getPointer(), ppUnk
-            });
-            if (hrCreate != 0) {
-                throw new AutomationException("IClassFactory::CreateInstance 失败: 0x" +
-                        Integer.toHexString(hrCreate) + " CLSID=" + clsidStr);
-            }
-            Pointer unkPtr = ppUnk.getValue();
-
-            // 步骤 3: IUnknown::QueryInterface 获取目标接口
-            // vtable: [0]=QueryInterface [1]=AddRef [2]=Release
-            Pointer unkVtbl = unkPtr.getPointer(0);
-            Function qiFn = Function.getFunction(unkVtbl.getPointer(0));
-            PointerByReference ppTarget = new PointerByReference();
-            int hrQi = qiFn.invokeInt(new Object[]{unkPtr, iid.getPointer(), ppTarget});
-            if (hrQi != 0) {
-                // QueryInterface 失败，释放 IUnknown
-                Function releaseFn = Function.getFunction(unkVtbl.getPointer(2 * Native.POINTER_SIZE));
-                releaseFn.invokeInt(new Object[]{unkPtr});
-                throw new AutomationException("QueryInterface 失败: 0x" +
-                        Integer.toHexString(hrQi) + " IID=" + iidStr);
-            }
-            Pointer targetPtr = ppTarget.getValue();
-
-            // 释放 IUnknown（目标接口已 AddRef）
-            Function releaseFn = Function.getFunction(unkVtbl.getPointer(2 * Native.POINTER_SIZE));
-            releaseFn.invokeInt(new Object[]{unkPtr});
-
-            return targetPtr;
-        } finally {
-            // 释放 IClassFactory
-            Pointer factoryVtbl = factoryPtr.getPointer(0);
-            Function releaseFactory = Function.getFunction(factoryVtbl.getPointer(2 * Native.POINTER_SIZE));
-            releaseFactory.invokeInt(new Object[]{factoryPtr});
-        }
+        return ppv.getValue();
     }
 
     /**
@@ -189,13 +134,15 @@ public class Win32Util {
         if (bstr == null || bstr == Pointer.NULL) {
             return null;
         }
-        // 将 Pointer 包装为 WTypes.BSTR
         WTypes.BSTR bstrObj = new WTypes.BSTR(bstr);
         int len = OleAuto.INSTANCE.SysStringLen(bstrObj);
         if (len == 0) {
             return "";
         }
-        return bstr.getString(0, "UTF-16LE");
+        // 使用已知字符长度精确读取（每个 UTF-16 字符占 2 字节）
+        int byteLen = len * 2;
+        byte[] bytes = bstr.getByteArray(0, byteLen);
+        return new String(bytes, StandardCharsets.UTF_16LE);
     }
 
     /**
@@ -231,7 +178,7 @@ public class Win32Util {
     /**
      * 将 SAFEARRAY(int) 解析为 Java int 数组
      * <p>直接从 SAFEARRAY 结构体内存布局中读取数据，不依赖额外的 OLE API 调用。
-     * 适用于一维 SAFEARRAY of VT_I4（int）类型。</p>
+     * 适用于一维 SAFEARRAY of VT_I4（int）类型。支持 32 位和 64 位系统。</p>
      *
      * <p>SAFEARRAY 内存布局（64 位系统）：</p>
      * <pre>
@@ -244,6 +191,17 @@ public class Win32Util {
      * offset 28: LONG   lLbound       (4 bytes) - 第一维下界
      * </pre>
      *
+     * <p>SAFEARRAY 内存布局（32 位系统）：</p>
+     * <pre>
+     * offset  0: USHORT cDims        (2 bytes)
+     * offset  2: USHORT fFeatures     (2 bytes)
+     * offset  4: ULONG  cbElements    (4 bytes)
+     * offset  8: ULONG  cLocks        (4 bytes)
+     * offset 12: PVOID  pvData        (4 bytes)
+     * offset 16: ULONG  cElements     (4 bytes)
+     * offset 20: LONG   lLbound       (4 bytes)
+     * </pre>
+     *
      * @param safeArrayPtr SAFEARRAY 指针（由 COM 方法返回）
      * @return Java int 数组，如果指针无效则返回空数组
      */
@@ -251,13 +209,18 @@ public class Win32Util {
         if (safeArrayPtr == null || safeArrayPtr == Pointer.NULL) {
             return new int[0];
         }
-        // 读取元素个数（rgsabound[0].cElements，偏移 24）
-        int cElements = safeArrayPtr.getInt(24);
+        // 根据指针大小判断 32/64 位，动态计算 SAFEARRAY 字段偏移
+        boolean is64bit = Native.POINTER_SIZE == 8;
+        int pvDataOffset = is64bit ? 16 : 12;
+        int cElementsOffset = is64bit ? 24 : 16;
+
+        // 读取元素个数
+        int cElements = safeArrayPtr.getInt(cElementsOffset);
         if (cElements <= 0) {
             return new int[0];
         }
-        // 读取数据指针（pvData，偏移 16）
-        Pointer pvData = safeArrayPtr.getPointer(16);
+        // 读取数据指针
+        Pointer pvData = safeArrayPtr.getPointer(pvDataOffset);
         if (pvData == null || pvData == Pointer.NULL) {
             return new int[0];
         }
